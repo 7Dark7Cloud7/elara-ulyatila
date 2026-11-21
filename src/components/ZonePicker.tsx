@@ -38,6 +38,16 @@ const checkedOn = (iso: string): string => {
     : d.toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
+/**
+ * A origem do nome, dita no ecrã. O mapa, a equipa e o Wikidata são três fontes
+ * diferentes — um lugar não pode parecer «do mapa» quando não veio de lá.
+ */
+const placeSource = (p: Place): string => {
+  if (p.via === 'equipa') return 'dito pela equipa';
+  const kind = `${placeKindLabel(p.kind)}${p.parent ? ` · ${p.parent}` : ''}`;
+  return p.via === 'wikidata' ? `Wikidata (CC0) · ${kind}` : kind;
+};
+
 /** O que o pedido responde, em palavras que a pessoa percebe sem abrir a consola. */
 const SENT_TEXT: Record<MissingPlace, string> = {
   enviado: 'Guardámos a palavra que procurou. Vai para a lista que a equipa lê.',
@@ -258,10 +268,8 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
                     <PinIcon className="w-4 h-4 shrink-0 text-purple-600 dark:text-amber-400" />
                     <span className="min-w-0 flex-1">
                       <span title={p.name} className="block text-body font-semibold text-ink dark:text-white truncate">{p.name}</span>
-                      <span title={p.via === 'equipa' ? 'dito pela equipa' : `${placeKindLabel(p.kind)}${p.parent ? ` · ${p.parent}` : ''}`} className="block text-caption font-medium text-zinc-500 dark:text-zinc-400 truncate">
-                        {p.via === 'equipa'
-                          ? 'dito pela equipa'
-                          : `${placeKindLabel(p.kind)}${p.parent ? ` · ${p.parent}` : ''}`}
+                      <span title={placeSource(p)} className="block text-caption font-medium text-zinc-500 dark:text-zinc-400 truncate">
+                        {placeSource(p)}
                       </span>
                     </span>
                     <span className="shrink-0 text-caption font-semibold text-zinc-500 dark:text-zinc-400 text-right">
@@ -353,7 +361,8 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
 
           {onExact && (
             <p className="text-caption font-medium text-zinc-500 dark:text-zinc-400">
-              Os nomes vêm do OpenStreetMap (licença ODbL)
+              Os nomes vêm do OpenStreetMap (licença ODbL) e do Wikidata
+              (dados estruturados sob CC0)
               {checked ? `, conferidos em ${checked}` : ''}. Os marcados
               «dito pela equipa» vieram de pessoas no terreno, e dizem-no. O
               preço é sempre o da zona onde o ponto cai.

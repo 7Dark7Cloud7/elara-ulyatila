@@ -24,11 +24,12 @@ import type { Zone } from '../types';
  * apenas a categoria, «Farmácia», «Cantina» — porque não desambiguam um
  * encontro: há trinta deles na cidade.
  *
- * Uma coisa não mudou com o índice maior: **o que o OSM não conhece não entra**.
- * Os poucos nomes que a equipa acrescentou vêm de `.pkg/places_team.json`, cada
- * um com a prova de onde saiu, e marcam-se no ecrã como ditos pela equipa —
- * nunca disfarçados de dados do mapa. Faltou um nome? A pessoa diz, e o pedido
- * entra na mesma fila que a equipa já lê (`reportMissingPlace`).
+ * O critério continua a ser o mesmo: **nada entra sem prova**. A maior parte
+ * vem do OSM; os nomes que a equipa acrescentou vêm de `.pkg/places_team.json`,
+ * e os bairros que o OSM não tem como `place=*` vêm do Wikidata (CC0), com o
+ * QID em `proof` (`.pkg/places_wikidata.json`). Cada um diz no ecrã de onde
+ * saiu — nunca disfarçado de dado do mapa. Faltou um nome? A pessoa diz, e o
+ * pedido entra na mesma fila que a equipa já lê (`reportMissingPlace`).
  *
  * O índice também não muda o preço: a viagem continua a nascer entre duas
  * `tr_zone`, porque é a zona que o servidor usa para calcular. O lugar fino é o
@@ -44,7 +45,7 @@ export interface Place {
   zoneId: string;
   zoneName: string;
   zoneKm: number;
-  /** 'equipa' = nome dito por alguém da Elara, com prova; não é do mapa. */
+  /** Origem fora do OSM: 'equipa' (dica no terreno) ou 'wikidata' (CC0, com QID). */
   via?: string;
 }
 

@@ -1,7 +1,7 @@
 {
- "_note": "Nomes e coordenadas devolvidos pelo OpenStreetMap (Overpass + Nominatim) a pedido do projecto. Só entra o que o OSM devolve de facto. Os que trazem «via»: «equipa» foram ditos por alguém da Elara no terreno e têm em «proof» quem disse, em que dia e que objecto OSM confirma o nome naquele sítio.",
- "_licence": "Data © OpenStreetMap contributors, ODbL 1.0 — https://osm.org/copyright",
- "fetched_at": "2026-10-26",
+ "_note": "Nomes e coordenadas devolvidos pelo OpenStreetMap (Overpass + Nominatim) a pedido do projecto. Só entra o que o OSM devolve de facto. Os que trazem «via»: «equipa» foram ditos por alguém da Elara no terreno e têm em «proof» quem disse, em que dia e que objecto OSM confirma o nome naquele sítio. Os que trazem «via»: «wikidata» são bairros que o OSM não tem como place=*, lidos do Wikidata e identificados pelo QID em «proof»; os nomes foram descobertos em listas da Wikipedia, do governo provincial e do openalfa, e confirmados no item.",
+ "_licence": "Data © OpenStreetMap contributors, ODbL 1.0 — https://osm.org/copyright; Wikidata structured data, CC0 1.0 — https://www.wikidata.org/wiki/Wikidata:Licensing",
+ "fetched_at": "2026-11-21",
  "city": "Luanda",
  "places": [
   {
@@ -1214,6 +1214,15 @@
    "lat": -6.27145,
    "lon": 23.32964,
    "parent": "Miabi"
+  },
+  {
+   "name": "Belas",
+   "kind": "county",
+   "lat": -9.058333333,
+   "lon": 13.153888888,
+   "parent": "Província de Luanda",
+   "via": "wikidata",
+   "proof": "Q727233"
   },
   {
    "name": "Belas Shopping",
@@ -7803,6 +7812,15 @@
    "parent": "Município de Ícolo e Bengo"
   },
   {
+   "name": "Futungo de Belas",
+   "kind": "district",
+   "lat": -8.9,
+   "lon": 13.18333333,
+   "parent": "Talatona",
+   "via": "wikidata",
+   "proof": "Q10286819"
+  },
+  {
    "name": "Futungo I",
    "kind": "neighbourhood",
    "lat": -8.91243,
@@ -9308,6 +9326,15 @@
    "parent": "Luanda"
   },
   {
+   "name": "Ilha de Luanda",
+   "kind": "island",
+   "lat": -8.77854722,
+   "lon": 13.243675,
+   "parent": "Luanda",
+   "via": "wikidata",
+   "proof": "Q607494"
+  },
+  {
    "name": "Ilha do Cabo",
    "kind": "island",
    "lat": -8.7922446,
@@ -9376,6 +9403,15 @@
    "lat": -8.83031,
    "lon": 13.24848,
    "parent": "Município de Luanda"
+  },
+  {
+   "name": "Ingombota",
+   "kind": "district",
+   "lat": -8.81805556,
+   "lon": 13.22888889,
+   "parent": "Luanda",
+   "via": "wikidata",
+   "proof": "Q1004998"
   },
   {
    "name": "Ingongo",
@@ -12369,6 +12405,15 @@
    "parent": "Kwango"
   },
   {
+   "name": "Mulenvos",
+   "kind": "county",
+   "lat": -8.881111111,
+   "lon": 13.376111111,
+   "parent": "Província de Luanda",
+   "via": "wikidata",
+   "proof": "Q135250830"
+  },
+  {
    "name": "Mumbeji",
    "kind": "town",
    "lat": -13.86202,
@@ -12521,6 +12566,15 @@
    "lat": -8.67595,
    "lon": 13.48521,
    "parent": "Luanda"
+  },
+  {
+   "name": "Mussulo",
+   "kind": "county",
+   "lat": -8.867166666,
+   "lon": 13.149638888,
+   "parent": "Província de Luanda",
+   "via": "wikidata",
+   "proof": "Q16497771"
   },
   {
    "name": "Musumba",
@@ -14406,6 +14460,24 @@
    "parent": "Município do Talatona"
   },
   {
+   "name": "Quilamba",
+   "kind": "county",
+   "lat": -8.998055555,
+   "lon": 13.265277777,
+   "parent": "Belas",
+   "via": "wikidata",
+   "proof": "Q1152298"
+  },
+  {
+   "name": "Quilamba Quiaxi",
+   "kind": "county",
+   "lat": -8.875,
+   "lon": 13.266666666,
+   "parent": "Província de Luanda",
+   "via": "wikidata",
+   "proof": "Q1741227"
+  },
+  {
    "name": "Quilenda",
    "kind": "town",
    "lat": -10.64145,
@@ -14502,6 +14574,24 @@
    "lat": -8.92422,
    "lon": 13.26537,
    "parent": "Município do Talatona"
+  },
+  {
+   "name": "Ramiro",
+   "kind": "district",
+   "lat": -9.051344,
+   "lon": 13.019214,
+   "parent": "Belas",
+   "via": "wikidata",
+   "proof": "Q10357332"
+  },
+  {
+   "name": "Rangel",
+   "kind": "county",
+   "lat": -8.83164167,
+   "lon": 13.25913333,
+   "parent": "Província de Luanda",
+   "via": "wikidata",
+   "proof": "Q1003727"
   },
   {
    "name": "Real Madrid Chiper",
@@ -16658,6 +16748,15 @@
    "lat": -8.82203,
    "lon": 13.26206,
    "parent": "Município de Luanda"
+  },
+  {
+   "name": "Zango",
+   "kind": "district",
+   "lat": -9.012121,
+   "lon": 13.384374,
+   "parent": "Viana",
+   "via": "wikidata",
+   "proof": "Q45794126"
   },
   {
    "name": "Zango 0",
