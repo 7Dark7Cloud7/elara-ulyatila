@@ -281,7 +281,7 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
               <p className="text-caption font-semibold text-zinc-500 dark:text-zinc-400 mb-2">
                 {city}
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {list.map((z) => (
                   <button
                     key={z.id}
@@ -306,7 +306,11 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
             <div className="py-6 text-center">
               <p className="text-label font-medium text-zinc-500 dark:text-zinc-400">
                 {query.trim()
-                  ? `Nada com «${query.trim()}» entre os bairros e lugares que temos. Escolha o bairro mais próximo e escreva a referência no ponto de embarque.`
+                  ? onExact && !ready
+                    ? failed
+                      ? `Os nomes dos lugares não chegaram. Por agora só encontrámos bairros para «${query.trim()}».`
+                      : `A procurar «${query.trim()}» nos bairros e nos lugares do mapa…`
+                    : `Nada com «${query.trim()}» entre os bairros e lugares que temos. Escolha o bairro mais próximo e escreva a referência no ponto de embarque.`
                   : 'Nenhuma zona carregada.'}
               </p>
               {!!query.trim() && report && (

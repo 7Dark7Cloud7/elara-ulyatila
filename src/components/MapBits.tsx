@@ -51,8 +51,8 @@ export function NearbyPill({ cars, gps, loading, failed, onAskGps, onRetry }: Ne
   if (gps === 'denied') {
     return (
       <FloatPill>
-        <div className="flex items-center gap-3">
-          <span className="text-[13px] font-bold text-zinc-600 dark:text-zinc-300">
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          <span className="min-w-0 text-[13px] font-bold text-zinc-600 dark:text-zinc-300">
             Não sabemos onde está — escolha a zona de partida
           </span>
           <button
@@ -70,8 +70,8 @@ export function NearbyPill({ cars, gps, loading, failed, onAskGps, onRetry }: Ne
   if (failed) {
     return (
       <FloatPill>
-        <span className="flex items-center gap-3">
-          <span className="text-[13px] font-bold text-zinc-600 dark:text-zinc-300">
+        <span className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          <span className="min-w-0 text-[13px] font-bold text-zinc-600 dark:text-zinc-300">
             Não foi possível ver os carros agora
           </span>
           <button type="button" onClick={onRetry} className="text-[12px] font-semibold text-purple-600 dark:text-purple-400 tap-pad">
@@ -198,11 +198,11 @@ export function RoutePeek({ from, to, status, detail, priceKz, onOpen }: RoutePe
           <span className={cn(
             'block truncate text-control font-semibold',
             from ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-zinc-400',
-          )}>{from ?? 'Escolher partida'}</span>
+          )} title={from ?? undefined}>{from ?? 'Escolher partida'}</span>
           <span className={cn(
             'block truncate text-control font-semibold',
             to ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-zinc-400',
-          )}>{to ?? 'Escolher destino'}</span>
+          )} title={to ?? undefined}>{to ?? 'Escolher destino'}</span>
         </span>
 
         {typeof priceKz === 'number' && (
@@ -220,7 +220,7 @@ export function RoutePeek({ from, to, status, detail, priceKz, onOpen }: RoutePe
       {(status || detail) && (
         <p className="mt-2 flex items-baseline gap-2 border-t border-zinc-100 pt-2 text-label dark:border-white/10">
           {status && <span className="font-semibold text-zinc-900 dark:text-white">{status}</span>}
-          {detail && <span className="min-w-0 flex-1 truncate text-zinc-500 dark:text-zinc-400">{detail}</span>}
+          {detail && <span title={detail} className="min-w-0 flex-1 truncate text-zinc-500 dark:text-zinc-400">{detail}</span>}
         </p>
       )}
 
@@ -284,7 +284,7 @@ export function WhereAmI({
         </button>
       </div>
 
-      <p className="mt-1.5 flex min-w-0 items-baseline gap-1.5">
+      <p aria-live="polite" className="mt-1.5 flex min-w-0 items-baseline gap-1.5">
         <span title={title} className="truncate text-[15px] font-semibold tracking-tight text-ink dark:text-white">{title}</span>
         {detail && (
           <span title={detail} className="min-w-0 truncate text-caption font-medium text-zinc-500 dark:text-zinc-400">{detail}</span>
