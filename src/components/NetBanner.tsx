@@ -51,8 +51,9 @@ export function NetBanner() {
 
         {!semLigacao && (
           <button
+            type="button"
             onClick={() => setPref('lowData', true)}
-            className="shrink-0 h-10 px-3.5 rounded-control bg-purple-50 dark:bg-amber-400/[0.14] border border-purple-200 dark:border-amber-400/40 text-label font-semibold text-purple-700 dark:text-amber-200 active:scale-95 transition self-center"
+            className="tap-pad shrink-0 h-10 px-3.5 rounded-control bg-purple-50 dark:bg-amber-400/[0.14] border border-purple-200 dark:border-amber-400/40 text-label font-semibold text-purple-700 dark:text-amber-200 active:scale-95 transition self-center"
           >
             Poupar dados
           </button>
