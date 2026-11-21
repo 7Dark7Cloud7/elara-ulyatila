@@ -605,8 +605,8 @@ export const SHAPES: Record<VehicleKind, (c: Ink) => ReactNode> = {
 export const Road = ({ c }: { c: Ink }) => (
   <g>
     <rect x="12" y={GROUND} width="196" height="3.2" rx="1.6" className={c.road} />
-    <rect x="34" y={GROUND + 5.2} width="32" height="1.8" rx="0.9" className={c.road} opacity="0.5" />
-    <rect x="86" y={GROUND + 5.2} width="46" height="1.8" rx="0.9" className={c.road} opacity="0.5" />
-    <rect x="152" y={GROUND + 5.2} width="26" height="1.8" rx="0.9" className={c.road} opacity="0.5" />
+    <rect x="34" y={GROUND + 2.2} width="32" height="1.4" rx="0.7" className={c.road} opacity="0.45" />
+    <rect x="86" y={GROUND + 2.2} width="46" height="1.4" rx="0.7" className={c.road} opacity="0.45" />
+    <rect x="152" y={GROUND + 2.2} width="26" height="1.4" rx="0.7" className={c.road} opacity="0.45" />
   </g>
 );

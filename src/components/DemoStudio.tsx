@@ -762,7 +762,7 @@ function LiveTrip({
           </div>
           <div className="mt-1 flex items-center justify-between text-caption text-white/85">
             <span className="truncate max-w-[44%]">{fromName}</span>
-            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-amber-300" />
+            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-amber-400 dark:text-amber-300" />
             <span className="truncate max-w-[44%] text-right">{toName}</span>
           </div>
         </div>

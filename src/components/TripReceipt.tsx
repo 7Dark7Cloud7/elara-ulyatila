@@ -136,7 +136,7 @@ export function TripReceipt({ trip, zones, onRated, onReport, onRepeat, onError 
         </h3>
         <div className="mt-3 flex items-center gap-2 text-body font-semibold">
           <span className="truncate">{from}</span>
-          <ArrowRightIcon className="w-4 h-4 shrink-0 text-amber-300" />
+          <ArrowRightIcon className="w-4 h-4 shrink-0 text-amber-400 dark:text-amber-300" />
           <span className="truncate">{to}</span>
         </div>
       </div>

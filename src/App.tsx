@@ -40,6 +40,7 @@ import { ShareView } from './views/ShareView';
    aqui são nomes — por isso o `{ default: … }`. */
 const DriverView = lazy(() => import('./views/DriverView').then((m) => ({ default: m.DriverView })));
 const TeamConsole = lazy(() => import('./components/TeamConsole').then((m) => ({ default: m.TeamConsole })));
+const DemoStudio = lazy(() => import('./components/DemoStudio').then((m) => ({ default: m.DemoStudio })));
 const RentalsSheet = lazy(() => import('./components/RentalsSheet').then((m) => ({ default: m.RentalsSheet })));
 const DataSheet = lazy(() => import('./components/DataSheet').then((m) => ({ default: m.DataSheet })));
 const HelpSheet = lazy(() => import('./components/HelpSheet').then((m) => ({ default: m.HelpSheet })));
@@ -109,6 +110,7 @@ export default function App() {
   // «Os meus dados»: exportação e pedido de eliminação, na mesma folha.
   const [dataOpen, setDataOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
   const dark = useTheme();
   const [tab, setTab] = useState<TabId>('corrida');
   // A assinatura da casa, uma vez por sessão: um F5 a meio não a repete.
@@ -412,6 +414,7 @@ export default function App() {
   const everHelp = useEver(helpOpen);
   const everData = useEver(dataOpen);
   const everTeam = useEver(teamOpen);
+  const everDemo = useEver(demoOpen);
 
   // O mapa ocupa o ecrã inteiro entre a barra de topo e a navegação; os outros
   // ecrãs (candidatura, histórico, carteira) ficam no layout de coluna do Elara.
@@ -742,6 +745,20 @@ export default function App() {
             zones={effectiveZones}
             classes={effectiveClasses}
             onError={(m) => notify(m)}
+          />
+        </Suspense>
+      )}
+
+      {/* «Saia da demonstração» fica sempre à mão: quem entra por engano não
+          fica preso dentro de um ecrã que finge viagens. */}
+      {everDemo && (
+        <Suspense fallback={null}>
+          <DemoStudio
+            open={demoOpen}
+            zones={effectiveZones}
+            classes={effectiveClasses}
+            onClose={() => setDemoOpen(false)}
+            onExit={() => { toggleDemo(false); setDemoOpen(false); }}
           />
         </Suspense>
       )}
