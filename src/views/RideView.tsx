@@ -995,6 +995,7 @@ export function RideView({
           <ServiceGrid value={null} onPick={onLogin} onRent={onLogin} />
           <div className="space-y-2">
             <button
+              type="button"
               onClick={onLogin}
               className="w-full h-14 rounded-card font-semibold text-control btn-main flex items-center justify-center gap-2"
             >

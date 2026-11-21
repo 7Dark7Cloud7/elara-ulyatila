@@ -54,6 +54,7 @@ export function BottomNav({ tab, onTab, dark }: BottomNavProps) {
           return (
             <button
               key={id}
+              type="button"
               onClick={() => onTab(id)}
               aria-current={active ? 'page' : undefined}
               className={cn(

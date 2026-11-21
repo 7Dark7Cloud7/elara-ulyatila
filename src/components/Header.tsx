@@ -23,6 +23,7 @@ export function Header({ dark, onToggleTheme, userName, onAccount }: HeaderProps
         <Brand dark={dark} className="lg:hidden" />
         <div className="grow" />
         <button
+          type="button"
           onClick={onToggleTheme}
           aria-label={dark ? 'Modo claro' : 'Modo escuro'}
           className="tap-pad w-10 h-10 rounded-full flex items-center justify-center text-zinc-600 dark:text-zinc-300 active:bg-black/5 dark:active:bg-white/10 transition-colors"
@@ -30,16 +31,23 @@ export function Header({ dark, onToggleTheme, userName, onAccount }: HeaderProps
           {dark ? <SunIcon className="w-[20px] h-[20px]" /> : <MoonIcon className="w-[20px] h-[20px]" />}
         </button>
         <button
+          type="button"
           onClick={onAccount}
-          aria-label={userName ? 'A minha conta' : 'Entrar'}
+          aria-label={userName ? `Conta de ${userName}` : 'Entrar'}
           className={cn(
-            'w-10 h-10 rounded-full flex items-center justify-center transition-colors',
+            'tap-pad w-10 h-10 rounded-full flex items-center justify-center transition-colors',
             userName
-              ? 'bg-purple-100 dark:bg-amber-400/15 text-purple-700 dark:text-amber-300 ring-1 ring-purple-200 dark:ring-amber-400/40'
+              ? 'bg-purple-600 text-white ring-1 ring-purple-300 dark:bg-amber-400 dark:text-ink dark:ring-amber-400/50'
               : 'text-zinc-600 dark:text-zinc-300 active:bg-black/5 dark:active:bg-white/10',
           )}
         >
-          <NavUserIcon className="h-5 w-5" />
+          {userName ? (
+            <span className="text-[15px] font-bold leading-none" aria-hidden="true">
+              {userName.trim().charAt(0).toUpperCase()}
+            </span>
+          ) : (
+            <NavUserIcon className="h-5 w-5" />
+          )}
         </button>
       </div>
     </header>

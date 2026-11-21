@@ -54,13 +54,13 @@ export function ServiceGrid({ value, onPick, onRent }: ServiceGridProps) {
               'group relative flex min-h-[134px] flex-col rounded-card border p-2 text-left',
               'transition-all duration-200 active:scale-[0.98]',
               active
-                ? 'border-purple-500 bg-gradient-to-br from-purple-100 to-purple-50 shadow-float dark:border-amber-400/70 dark:from-amber-400/[0.16] dark:to-amber-400/[0.04]'
+                ? 'border-purple-500 bg-gradient-to-br from-purple-100 to-purple-50 shadow-float ring-2 ring-purple-500/25 dark:border-amber-400/70 dark:from-amber-400/[0.16] dark:to-amber-400/[0.04] dark:ring-amber-400/25'
                 : 'border-zinc-200 bg-white hover:-translate-y-0.5 hover:border-purple-300 hover:shadow-card dark:border-[rgba(185,168,220,0.28)] dark:bg-white/[0.05] dark:hover:border-amber-400/50',
             )}
           >
             <span
               className={cn(
-                'relative flex h-[78px] w-full items-center justify-center overflow-hidden rounded-[14px] px-1.5',
+                'service-stage relative flex h-[78px] w-full items-center justify-center overflow-hidden rounded-[14px] px-1.5',
                 active
                   ? 'bg-white/90 dark:bg-white/[0.11]'
                   : 'bg-gradient-to-b from-zinc-100/90 to-zinc-50/70 dark:from-white/[0.09] dark:to-white/[0.03]',
@@ -69,7 +69,7 @@ export function ServiceGrid({ value, onPick, onRent }: ServiceGridProps) {
               {useVector ? (
                 <ServiceArt
                   id={art}
-                  className="h-[66px] w-auto max-w-full transition-transform duration-200 group-hover:scale-[1.06] group-active:scale-95"
+                  className="relative z-10 h-[66px] w-auto max-w-full transition-transform duration-200 group-hover:scale-[1.06] group-active:scale-95"
                 />
               ) : (
                 <img
@@ -78,7 +78,7 @@ export function ServiceGrid({ value, onPick, onRent }: ServiceGridProps) {
                   aria-hidden="true"
                   decoding="async"
                   onError={() => setFailed((prev) => ({ ...prev, [art]: true }))}
-                  className="h-[72px] w-auto max-w-full object-contain drop-shadow-[0_6px_10px_rgba(20,8,38,0.18)] transition-transform duration-200 group-hover:scale-[1.06] group-active:scale-95"
+                  className="relative z-10 h-[72px] w-auto max-w-full object-contain drop-shadow-[0_6px_10px_rgba(20,8,38,0.18)] transition-transform duration-200 group-hover:scale-[1.06] group-active:scale-95"
                 />
               )}
               {active && (

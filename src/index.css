@@ -161,6 +161,38 @@
     text-transform: uppercase;
     font-weight: 600;
   }
+
+  /* Palco de estúdio dos cartões de serviço. O recorte 3D (branco pérola,
+     roxo real, ouro champanhe) precisa de um chão: um halo radial suave que o
+     levanta do cartão e uma sombra de contacto que o assenta. Sem este par os
+     recortes flutuam como autocolantes. Só paleta da casa, sem cor fria. */
+  .service-stage::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(ellipse 72% 56% at 50% 34%, rgba(124, 92, 230, 0.13), transparent 70%);
+    pointer-events: none;
+  }
+  .dark .service-stage::before {
+    background: radial-gradient(ellipse 72% 56% at 50% 34%, rgba(231, 207, 166, 0.18), transparent 70%);
+  }
+  .service-stage::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 5px;
+    width: 62px;
+    height: 7px;
+    transform: translateX(-50%);
+    border-radius: 100%;
+    background: rgba(42, 18, 80, 0.12);
+    filter: blur(3px);
+    pointer-events: none;
+  }
+  .dark .service-stage::after {
+    background: rgba(0, 0, 0, 0.45);
+  }
 }
 
 @layer utilities {
