@@ -222,6 +222,18 @@ export function TripsView({
 
       {visible.length === 0 ? (
         <Empty
+          art={
+            trips.length === 0 ? (
+              <span className="service-stage relative mx-auto mb-3 flex h-[92px] w-[148px] items-center justify-center overflow-hidden rounded-card">
+                <img
+                  src="/icons-3d/carro.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="relative z-10 h-[76px] w-auto object-contain"
+                />
+              </span>
+            ) : undefined
+          }
           title={trips.length === 0 ? 'Ainda sem viagens' : 'Nada nesta vista'}
           text={trips.length === 0
             ? 'Quando pedir a primeira viagem ou entrega, ela aparece aqui com preço, código e avaliação.'
