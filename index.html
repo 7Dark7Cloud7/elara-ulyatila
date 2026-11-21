@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-AO">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/elara-mark.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#1b0b38" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Elara Ulyatila — viagens, entregas e aluguer em Luanda. Peça a sua viagem, siga o motorista, pague com segurança." />
+    <title>Elara Ulyatila</title>
+    <link rel="preload" href="/fonts/montserrat-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/playfair-display-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preconnect" href="https://bkubhmovgojhutevgzvt.supabase.co" />
+    <script>
+      // Antes do primeiro desenho: o escuro é o desenho da app, e ninguém deve
+      // ver um flash creme ao abrir. A escolha guardada manda.
+      try {
+        var d = localStorage.getItem('trajectoria_theme');
+        var dark = d ? d === 'dark' : true;
+        if (dark) document.documentElement.classList.add('dark');
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#1b0b38' : '#faf7f0');
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,483 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* As duas vozes da marca, empacotadas (OFL, ver public/fonts/OFL.txt): sem
+   rede à primeira abertura continua a haver letra nossa, e não a do sistema. */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/montserrat-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('/fonts/playfair-display-latin.woff2') format('woff2');
+}
+
+:root {
+  --background: #faf7f0;
+  --foreground: #2a1250;
+  /* A coluna de navegação do PC. É uma só medida porque aparece em três
+     sítios que têm de bater certo entre si: a largura da barra, o recuo do
+     corpo e o centro do toast (que é o meio do que sobra, não o meio do
+     ecrã). Mudar um e não os outros deixa a app desalinhada em silêncio. */
+  --rail: 248px;
+}
+
+.dark {
+  --background: #1b0b38;
+  --foreground: #ffffff;
+}
+
+@layer base {
+  /* Teclado e switch acessível: sem isto o utilizador não sabe onde está.
+     Só :focus-visible — o toque não fica com anéis por toda a tela. Dois
+     pixeis, não três: um anel grosso parece um aviso, não um cursor. */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid #7c5ce6;
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+
+  .dark :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline-color: #e7cfa6;
+  }
+
+  /* A selecção de texto é desenho nosso tanto quanto um botão: é a parte da
+     interface que o browser faz por omissão e que quase ninguém ajeita. */
+  ::selection {
+    background: rgba(124, 92, 230, 0.18);
+    color: inherit;
+  }
+  .dark ::selection {
+    background: rgba(231, 207, 166, 0.3);
+  }
+
+  /* O webview do Android não deve elástico nem recolorir texto em modo escuro. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
+    /* O elástico do Android mostra o html, não o body: sem isto a app escura
+       ganha uma faixa branca no topo ao puxar. */
+    background-color: var(--background);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: 'Montserrat', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    /* Kwanza, tempo de espera, distância: os números desta app mudam em
+       andamento (cotação a actualizar, cronómetro a descer). Com digitos
+       proporcionais cada atualização empurra a linha. Números tabulares em
+       todo o lado custam um pixel de ar e evitam o tremor. */
+    font-variant-numeric: tabular-nums;
+    transition: background-color 0.5s ease, color 0.5s ease;
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, a, label, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Sem isto o Android faz zoom-in ao focar um campo com menos de 16px. */
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
+/* — Primitivas da marca —————————————————————————————————————————————————————
+   O referencial tem quatro superfícies e uma acção. Estão aqui, e não espalhadas
+   por 400 className, para que o escuro e o claro não divirjam: no escuro a
+   acção é ouro; no claro é violeta. Quem precisa de outra cor usa os tokens. */
+@layer components {
+  .btn-main {
+    background-image: linear-gradient(135deg, #7c5ce6, #5a2fc2);
+    color: #fff;
+    box-shadow: 0 12px 26px -14px rgba(90, 47, 194, 0.75);
+  }
+  .dark .btn-main {
+    background-image: linear-gradient(135deg, #f1ddbb, #c89b68);
+    color: #2a1250;
+    box-shadow: 0 12px 26px -14px rgba(200, 155, 104, 0.6);
+  }
+
+  /* Cartão do painel: branco no claro, vidro lilás no escuro. */
+  .surface-card {
+    background: #fff;
+    border: 1px solid #e6ddf5;
+    box-shadow: 0 6px 20px rgba(42, 18, 80, 0.06);
+  }
+  .dark .surface-card {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(185, 168, 220, 0.3);
+    box-shadow: none;
+  }
+
+  /* Botão secundário: contorno que desaparece no fundo, sem peso visual. */
+  .surface-outline {
+    background: #fff;
+    border: 1px solid #e0d6f2;
+    color: #2a1250;
+  }
+  .dark .surface-outline {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(185, 168, 220, 0.3);
+    color: #fff;
+  }
+
+  .report-choice {
+    @apply surface-outline min-h-11 rounded-full px-3 py-2 text-label font-semibold transition-colors;
+  }
+  .report-choice[aria-pressed="true"] {
+    @apply border-purple-600 bg-purple-600 text-white dark:border-purple-400 dark:bg-purple-400 dark:text-purple-950;
+  }
+  .report-input {
+    @apply surface-outline w-full rounded-control p-3 text-base leading-relaxed resize-y placeholder:text-zinc-500 dark:placeholder:text-zinc-400;
+  }
+  .report-copy {
+    @apply text-label leading-relaxed text-zinc-600 dark:text-zinc-300;
+  }
+
+  /* A pega dos painéis: 40×4, como no referencial. Não é um botão — o botão é
+     a área tocável à volta dela, no componente. */
+  .sheet-grabber {
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: #d9cfee;
+  }
+  .dark .sheet-grabber { background: rgba(185, 168, 220, 0.4); }
+
+  /* Letra de secção em versaletes espaçadas (RECENTES, SERVIÇOS). */
+  .eyebrow {
+    font-size: 11px;
+    line-height: 13px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+}
+
+@layer utilities {
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
+  .overscroll-contain { overscroll-behavior: contain; }
+  .custom-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .custom-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  /* Barras horizontais (categorias, filtros): deslize com inércia e encaixe. */
+  .h-rail {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .h-rail::-webkit-scrollbar { display: none; }
+  .rail-item { scroll-snap-align: start; }
+  .scroll-snap-x {
+    scroll-snap-type: x mandatory;
+  }
+  .scroll-snap-item {
+    scroll-snap-align: start;
+  }
+  /* Entrada de modais e páginas. Feito em CSS em vez de uma biblioteca de
+     animação: mantém o arranque do app leve em redes móveis. */
+  .animate-enter {
+    animation: elaraEnter 0.3s ease-out both;
+  }
+  .animate-enter-sm {
+    animation: elaraEnterSm 0.3s ease-out both;
+  }
+  /* Sheets e modais: o tailwindcss-animate não está instalado, por isso estas
+     classes próprias são o que realmente anima as transições no telemóvel. */
+  .animate-sheet {
+    animation: elaraSheet 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  .animate-pop {
+    animation: elaraPop 0.28s ease-out both;
+  }
+  .animate-drop {
+    animation: elaraDrop 0.28s ease-out both;
+  }
+  /* O veículo "entra" na estrada quando a categoria é escolhida. Curto o
+     bastante para não atrasar o toque, visível o bastante para dar vida ao
+     cartão. */
+  .animate-drive {
+    animation: elaraDrive 0.42s cubic-bezier(0.22, 0.68, 0.24, 1) both;
+  }
+  /* O traço do splash atravessa uma vez e fica. */
+  .animate-splash {
+    animation: elaraSplash 1.05s cubic-bezier(0.33, 0.9, 0.4, 1) both;
+  }
+  /* Novo pedido na praça: o cartão respira uma vez para ser visto sem gritar. */
+  .animate-alert {
+    animation: elaraAlert 1.1s ease-in-out 2 both;
+  }
+  /* Barra fina que enche: é o cronómetro de um pedido que expira, não um spinner. */
+  .animate-timer {
+    animation: elaraTimer linear both;
+  }
+  /* O anel de confirmação de uma posição que chegou: uma vez, e para. Um botão
+     que pulsa sem parar compete com o resto do ecrã e deixa de dizer nada. */
+  .animate-fix {
+    animation: elaraFix 0.9s cubic-bezier(0.22, 0.68, 0.24, 1) both;
+  }
+  /* O brilho que atravessa o botão primário enquanto a app trabalha (procurar
+     motorista, calcular preço). É a única coisa que mostra movimento dentro do
+     botão — sem spinner por cima do texto, sem andar aos saltos. */
+  .animate-sheen {
+    position: relative;
+    overflow: hidden;
+  }
+  .animate-sheen::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.28) 48%, transparent 66%);
+    transform: translateX(-100%);
+    animation: elaraSheen 1.9s ease-in-out infinite;
+  }
+  /* O toast está centrado com -translate-x-1/2; a animação tem de manter esse
+     deslocamento, senão o 'both' deixa o transform em 'none' e ele salta para a
+     esquerda do ecrã. */
+  .animate-toast {
+    animation: elaraToast 0.28s ease-out both;
+  }
+  /* Botões pequenos ganha 8px de área tocável por fora, sem crescer o desenho.
+     O Material Design pede 48dp; um ícone de 28px sem isto é difícil de acertar
+     no telemóvel. */
+  .tap-pad {
+    position: relative;
+  }
+  .tap-pad::after {
+    content: '';
+    position: absolute;
+    inset: -9px;
+  }
+  /* Para os controlos pequenos e isolados — o manípulo do painel (14px de alto)
+     e os interruptores de 32px: a área tocável chega aos 44px do Material sem
+     que o desenho cresça um pixel. Usar só onde não há outro controlo ao lado,
+     porque a área extra é generosa. */
+  .tap-pad-lg {
+    position: relative;
+  }
+  .tap-pad-lg::after {
+    content: '';
+    position: absolute;
+    inset: -16px;
+  }
+  /* O ecrã de mapa: o mapa é o fundo, a acção flutua por cima. Cabe entre o
+     cabeçalho (3,5rem + topo seguro) e a navegação (4,5rem + queixo seguro). */
+  .screen-map {
+    position: relative;
+    height: calc(100vh - 8rem);
+    height: calc(100dvh - 8rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+  .app-map-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    padding-bottom: calc(4.5rem + 1px + env(safe-area-inset-bottom));
+  }
+  .app-map-shell > :not(main) { flex-shrink: 0; }
+  .app-map-shell > main {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow-y: auto;
+  }
+  .app-map-shell .screen-map { height: 100%; }
+  /* No PC a navegação mudou-se para a coluna da esquerda: o queixo livre
+     volta a ser do mapa, e só o topo (a barra de 3,5 rem) continua a contar. */
+  @media (min-width: 1024px) {
+    .screen-map {
+      height: calc(100vh - 3.5rem);
+      height: calc(100dvh - 3.5rem - env(safe-area-inset-top));
+    }
+    .app-map-shell { padding-bottom: 0; }
+    .app-map-shell .screen-map { height: 100%; }
+  }
+  /* Halo do "você está aqui". Escala e esvanece; o ponto fica quieto. */
+  .map-pulse {
+    animation: elaraPulse 2.6s ease-in-out infinite;
+  }
+  /* Anéis de procura sobre o pino de partida: o gesto que diz à pessoa que o
+     pedido está na praça, à espera de um carro — não a rodar na cabeça dela. */
+  .map-scan {
+    animation: elaraScan 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+  }
+  .map-scan-late {
+    animation: elaraScan 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) 1.2s infinite;
+  }
+}
+
+@keyframes elaraEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes elaraEnterSm {
+  from { opacity: 0; transform: translateY(15px) scale(0.95); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes elaraSheet {
+  from { transform: translateY(100%); }
+  to   { transform: none; }
+}
+@keyframes elaraPop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes elaraDrop {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes elaraDrive {
+  from { opacity: 0; transform: translateX(-22px) scale(0.94); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes elaraAlert {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 92, 230, 0); }
+  35%      { box-shadow: 0 0 0 6px rgba(124, 92, 230, 0.24); }
+}
+@keyframes elaraTimer {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+@keyframes elaraToast {
+  from { opacity: 0; transform: translate(-50%, -12px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Nasce no botão e abre até desaparecer. A cor é a da marca, e o ponto de
+   partida é a sombra *dele*, para o anel não apagar o `shadow-card`. */
+@keyframes elaraFix {
+  0%   { box-shadow: 0 0 0 0 rgba(124, 92, 230, 0.55), 0 2px 5px rgba(33, 32, 31, 0.1); }
+  100% { box-shadow: 0 0 0 16px rgba(124, 92, 230, 0), 0 2px 5px rgba(33, 32, 31, 0.1); }
+}
+
+@keyframes elaraSheen {
+  0%   { transform: translateX(-100%); }
+  55%  { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* O traço do splash: uma linha que atravessa a marca e se apaga. */
+@keyframes elaraSplash {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(220%); }
+}
+
+@keyframes elaraPulse {
+  0%   { transform: scale(0.7); opacity: 0.8; }
+  70%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Um anel que nasce no pino e se abre até à borda do raio de procura. */
+@keyframes elaraScan {
+  0%   { transform: scale(0.18); opacity: 0.85; }
+  80%  { opacity: 0.12; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* Uma festa curta no fecho da corrida: cai uma vez e para. São as cores da
+   marca e uma de destaque, nada mais. */
+@keyframes elaraConfetti {
+  0%   { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 0; }
+  12%  { opacity: 1; }
+  100% { transform: translate3d(var(--drift, 0px), 210px, 0) rotate(320deg); opacity: 0; }
+}
+
+.confetti-bit {
+  position: absolute;
+  top: 0;
+  width: 7px;
+  height: 12px;
+  border-radius: 2px;
+  animation: elaraConfetti 1500ms ease-in forwards;
+  pointer-events: none;
+}
+
+/* No PC não há «folha» que suba da borda de baixo de um monitor — o painel
+   senta-se ao centro e entra por escala. Tem de ser escrito aqui, e não como
+   variante de breakpoint da classe, porque as classes próprias deste ficheiro
+   não registam variantes no Tailwind: `lg:` na frente delas compila para nada.
+   Fica antes do bloco de movimento reduzido: esse ganha sempre. */
+@media (min-width: 1024px) {
+  .animate-sheet { animation: elaraPop 0.28s ease-out both; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-enter,
+  .animate-enter-sm,
+  .animate-sheet,
+  .animate-pop,
+  .animate-drop,
+  .animate-drive,
+  .animate-alert,
+  .animate-timer,
+  .animate-toast,
+  .animate-fix,
+  .confetti-bit,
+  .map-pulse,
+  .map-scan,
+  .map-scan-late { animation: none; }
+  /* O brilho é decorativo por completo: sem movimento, não há nada para ver. */
+  .animate-sheen::after { animation: none; opacity: 0; }
+}
+
+/* — MapLibre ————————————————————————————————————————————————————————————————
+   Os controlos do MapLibre vêm com estilo próprio; entram aqui para não
+   gritarem num ecrã de 360px e para continuarem legíveis no modo escuro.
+   A atribuição (OpenStreetMap / OpenMapTiles) fica sempre visível: é
+   condição do uso dos dados. */
+.maplibregl-ctrl-attrib {
+  /* 11px é o piso da nossa escala de tipo (caption). A atribuição é leitura
+     obrigatória; a 10px ficava abaixo do resto da app e era a única letra
+     pequena do produto. */
+  font-size: 11px;
+  background: rgba(250, 247, 240, 0.85) !important;
+  backdrop-filter: blur(6px);
+}
+.dark .maplibregl-ctrl-attrib { background: rgba(27, 11, 56, 0.85) !important; }
+/* O CSS do MapLibre é injectado depois do nosso (import dinâmico) e a regra dele
+   `.maplibregl-ctrl-attrib.maplibregl-compact` (dentro de `@media screen`) põe
+   preto no texto. Em empate de especificidade ganha quem vem depois, por isso
+   repetimos os dois classes mais o contentor do mapa. Sem isto a atribuição
+   fica preta sobre o cartão escuro. */
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact { color: #6B5A8A; }
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact a { color: #6B5A8A; }
+.dark .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact { color: #B9A8DC; }
+.dark .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-compact a { color: #B9A8DC; }
+.maplibregl-ctrl-group:not(:empty) {
+  box-shadow: 0 2px 12px -2px rgba(27, 11, 56, 0.45);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.dark .maplibregl-ctrl-group:not(:empty) { background: #2A1254; }
+.dark .maplibregl-ctrl-icon { filter: invert(1) hue-rotate(180deg); }
+/* Os pinos são DOM nosso; sem isto o MapLibre anima o transform e briga com
+   a nossa própria interpolação das posições. */
+.maplibregl-marker { will-change: transform; }
