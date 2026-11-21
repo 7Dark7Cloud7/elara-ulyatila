@@ -203,7 +203,7 @@ export function TripsView({
                 onClick={() => setFilter(f.id)}
                 aria-pressed={filter === f.id}
                 className={cn(
-                  'h-9 rounded-full text-label font-semibold transition-colors',
+                  'h-11 rounded-full text-label font-semibold transition-colors',
                   filter === f.id
                     ? 'bg-white text-ink shadow-sm dark:bg-white/15 dark:text-white'
                     : 'text-zinc-500 dark:text-zinc-400',
@@ -222,7 +222,7 @@ export function TripsView({
                 onClick={() => setKindFilter(kf.id)}
                 aria-pressed={kindFilter === kf.id}
                 className={cn(
-                  'h-9 rounded-full border px-3.5 text-label font-semibold transition-colors',
+                  'h-11 rounded-full border px-3.5 text-label font-semibold transition-colors',
                   kindFilter === kf.id
                     ? 'border-purple-600 bg-purple-600 text-white dark:border-amber-400 dark:bg-amber-400 dark:text-ink'
                     : 'surface-outline text-zinc-600 dark:text-zinc-300',
@@ -308,7 +308,7 @@ export function TripsView({
                   <button
                     type="button"
                     onClick={() => onOpenTrip(t)}
-                    className="h-10 flex-1 rounded-control text-label font-semibold text-purple-700 dark:text-amber-300"
+                    className="h-11 flex-1 rounded-control text-label font-semibold text-purple-700 dark:text-amber-300"
                   >
                     {isTripActive(t) ? 'Acompanhar' : 'Recibo'}
                   </button>
@@ -316,7 +316,7 @@ export function TripsView({
                     <button
                       type="button"
                       onClick={() => onRepeatTrip(t)}
-                      className="flex h-10 items-center justify-center gap-1.5 rounded-control border border-purple-200 bg-purple-50 px-3 text-label font-semibold text-purple-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-200"
+                      className="flex h-11 items-center justify-center gap-1.5 rounded-control border border-purple-200 bg-purple-50 px-3 text-label font-semibold text-purple-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-200"
                     >
                       <RepeatIcon className="h-3.5 w-3.5" /> Repetir
                     </button>
@@ -325,7 +325,7 @@ export function TripsView({
                     type="button"
                     onClick={() => void share(t, from, to)}
                     aria-label={`Partilhar viagem ${t.code}`}
-                    className="flex h-10 items-center justify-center gap-1.5 rounded-control surface-outline px-3 text-label font-semibold"
+                    className="flex h-11 items-center justify-center gap-1.5 rounded-control surface-outline px-3 text-label font-semibold"
                   >
                     <ShareIcon className="h-3.5 w-3.5" />
                   </button>

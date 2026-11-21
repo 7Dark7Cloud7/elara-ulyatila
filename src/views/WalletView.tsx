@@ -332,7 +332,7 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
                 onClick={() => setDirFilter(f.id)}
                 aria-pressed={dirFilter === f.id}
                 className={cn(
-                  'h-9 rounded-full text-label font-semibold transition-colors',
+                  'h-11 rounded-full text-label font-semibold transition-colors',
                   dirFilter === f.id
                     ? 'bg-white text-ink shadow-sm dark:bg-white/15 dark:text-white'
                     : 'text-zinc-500 dark:text-zinc-400',
@@ -448,7 +448,7 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
                 onClick={() => setMethod(m)}
                 aria-pressed={method === m}
                 className={cn(
-                  'h-9 rounded-full border px-3 text-caption font-semibold transition-colors',
+                  'h-11 rounded-full border px-3 text-caption font-semibold transition-colors',
                   method === m
                     ? 'border-purple-600 bg-purple-600 text-white dark:border-amber-400 dark:bg-amber-400 dark:text-ink'
                     : 'surface-outline',

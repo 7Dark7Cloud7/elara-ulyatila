@@ -472,14 +472,14 @@ export default function App() {
               <button
                 type="button"
                 onClick={resetDemo}
-                className="inline-flex h-7 items-center gap-1 rounded-lg border border-purple-300/80 bg-white px-2 text-[11px] font-semibold text-purple-700 dark:border-amber-400/35 dark:bg-white/[0.08] dark:text-amber-200"
+                className="inline-flex h-10 items-center gap-1 rounded-control border border-purple-300/80 bg-white px-2.5 text-[11px] font-semibold text-purple-700 dark:border-amber-400/35 dark:bg-white/[0.08] dark:text-amber-200"
               >
                 <RefreshIcon className="h-3 w-3" /> Reiniciar
               </button>
               <button
                 type="button"
                 onClick={() => toggleDemo(false)}
-                className="inline-flex h-7 items-center gap-1 rounded-lg bg-purple-600 px-2 text-[11px] font-semibold text-white dark:bg-amber-400 dark:text-ink"
+                className="inline-flex h-10 items-center gap-1 rounded-control bg-purple-600 px-2.5 text-[11px] font-semibold text-white dark:bg-amber-400 dark:text-ink"
               >
                 <CloseIcon className="h-3 w-3" /> Sair
               </button>
