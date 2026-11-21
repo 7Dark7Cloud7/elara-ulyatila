@@ -147,7 +147,7 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
             <span className="block text-caption font-medium text-zinc-500 dark:text-zinc-400">
               {label}
             </span>
-            <span className={cn('block truncate font-medium', selected ? 'text-ink dark:text-white' : 'text-zinc-500 dark:text-zinc-400')}>
+            <span title={selected ? `${selected.name} · ${selected.city}` : undefined} className={cn('block truncate font-medium', selected ? 'text-ink dark:text-white' : 'text-zinc-500 dark:text-zinc-400')}>
               {selected ? `${selected.name} · ${selected.city}` : 'Escolher zona'}
             </span>
           </span>

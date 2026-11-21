@@ -165,14 +165,14 @@ export function HelpSheet({ open, onClose, isDriver, onOpenData }: HelpSheetProp
               onChange={(e) => { setQuery(e.target.value); setWide(null); }}
               placeholder="Procurar dúvida (ex.: preço, código, troco, SOS)…"
               aria-label="Procurar na ajuda"
-              className="w-full h-11 rounded-control bg-white dark:bg-white/[0.06] border border-zinc-200 dark:border-white/15 pl-10 pr-10 text-label text-ink dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:border-purple-500 dark:focus:border-amber-400 [&::-webkit-search-cancel-button]:appearance-none"
+              className="w-full h-11 rounded-control bg-white dark:bg-white/[0.06] border border-zinc-200 dark:border-white/15 pl-10 pr-12 text-label text-ink dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:border-purple-500 dark:focus:border-amber-400 [&::-webkit-search-cancel-button]:appearance-none"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => { setQuery(''); setWide(null); }}
                 aria-label="Limpar pesquisa"
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400"
+                className="absolute right-0.5 top-1/2 -translate-y-1/2 w-11 h-11 rounded-control flex items-center justify-center text-zinc-500 dark:text-zinc-400"
               >
                 <CloseIcon className="w-4 h-4" />
               </button>
@@ -188,7 +188,7 @@ export function HelpSheet({ open, onClose, isDriver, onOpenData }: HelpSheetProp
                   onClick={() => { setQuery(selected ? '' : topic); setWide(null); }}
                   aria-pressed={selected}
                   className={cn(
-                    'h-8 px-3 rounded-control border text-caption font-semibold transition-colors',
+                    'h-11 px-3 rounded-control border text-caption font-semibold transition-colors',
                     selected
                       ? 'border-purple-500 bg-purple-50 text-purple-700 dark:border-amber-400 dark:bg-amber-400/[0.14] dark:text-amber-200'
                       : 'border-zinc-200 dark:border-white/15 bg-white dark:bg-white/[0.04] text-zinc-600 dark:text-zinc-300',
