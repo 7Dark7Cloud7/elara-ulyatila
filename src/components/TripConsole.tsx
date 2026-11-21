@@ -439,14 +439,14 @@ export function TripConsole({
           </p>
           {suggestNote(trip.price_kz) && (
             <button
+              type="button"
               onClick={() => setNote(`Vou pagar com nota de ${formatKz(suggestNote(trip.price_kz) ?? 0)}.`)}
               className={cn(
-                'mt-2.5 h-10 px-3.5 rounded-xl text-[12px] font-semibold',
+                'mt-2.5 h-11 px-3.5 rounded-control text-[12px] font-semibold',
                 'bg-white dark:bg-zinc-900 border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200',
-                note && 'opacity-60',
               )}
             >
-              {note ? 'Escrito no chat — carregue para enviar' : 'Avisar no chat'}
+              {note ? 'Reenviar aviso no chat' : 'Avisar no chat'}
             </button>
           )}
         </div>
