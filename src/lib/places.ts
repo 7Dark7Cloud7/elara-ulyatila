@@ -85,9 +85,15 @@ const RANK: Record<string, number> = {
 const rankOf = (kind: string): number => RANK[kind] ?? 1;
 const isBairro = (p: Place): boolean => rankOf(p.kind) >= 2;
 
+/** «Calemba II» e «Calemba 2» são o mesmo bairro: o número romano é só
+ *  outra grafia do número que o mapa traz. Sem isto, quem escreve o «II» —
+ *  como está nas listas do bairro — não encontrava o lugar. */
+const ROMAN: Record<string, string> = { ii: '2', iii: '3', iv: '4' };
+
 /** «São Paulo» e «sao paulo» são a mesma busca. */
 const fold = (s: string): string =>
-  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/\b(ii|iii|iv)\b/g, (m) => ROMAN[m]);
 
 type RawPlace = {
   name: string; kind: string; lat: number; lon: number; parent?: string; via?: string;
@@ -209,6 +215,9 @@ export function placesFor(zones: Zone[]): Place[] {
 }
 
 const tokenScore = (hay: string, t: string): number => {
+  // Um dígito isolado — o «2» que sobra de «Calemba II» — não pode colar-se
+  // a «21 de Janeiro» ou a «G12»: só conta quando é palavra inteira.
+  if (/^\d$/.test(t)) return hay.split(' ').includes(t) ? 3 : 0;
   if (hay.startsWith(t) || hay.includes(` ${t}`)) return 3;
   if (hay.includes(t)) return 2;
   // Uma tecla a mais num telemóvel não pode esconder um bairro inteiro: «dangeres»
@@ -237,7 +246,9 @@ function matchScore(f: string[], ts: string[]): number {
 
 /** Procura por bairro, ponto de referência, avenida ou município. */
 export function searchPlaces(q: string, zones: Zone[]): Place[] {
-  const ts = fold(q).split(' ').filter((t) => t.length >= 2);
+  // Um dígito isolado conta: é o que sobra de «Calemba II» depois do `fold`.
+  // Uma letra isolada continua a não chegar (`f` não pode devolver meio índice).
+  const ts = fold(q).split(' ').filter((t) => t.length >= 2 || /^\d$/.test(t));
   if (!ts.length) return [];
   const { places, folds } = indexed(zones);
   const hits: { p: Place; s: number }[] = [];

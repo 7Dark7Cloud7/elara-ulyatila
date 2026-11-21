@@ -14453,6 +14453,24 @@
    "parent": "Bengo"
   },
   {
+   "name": "Quicolo",
+   "kind": "county",
+   "lat": -8.7896501,
+   "lon": 13.3326579,
+   "parent": "Município do Cacuaco",
+   "via": "wikidata",
+   "proof": "Q18469021"
+  },
+  {
+   "name": "Quifangondo",
+   "kind": "county",
+   "lat": -8.763333333,
+   "lon": 13.423888888,
+   "parent": "Município do Cacuaco",
+   "via": "wikidata",
+   "proof": "Q10314322"
+  },
+  {
    "name": "Quifica",
    "kind": "neighbourhood",
    "lat": -8.95889,
