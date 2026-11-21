@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeftIcon, SpinnerIcon, StarIcon, WalletGlyphIcon } from './ElaraIcons';
 import { NavUserIcon } from './NavIcons';
 import { supabase, rpcError } from '../lib/supabase';
@@ -27,6 +27,10 @@ interface RentalBookingProps {
  * dono. O que a pessoa vê no ecrã é o número que o dono recebe.
  */
 export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }: RentalBookingProps) {
+  // O aviso é guardado num ref: se o pai mandar uma função nova a cada render,
+  // o efeito do preço não se remonta e não fica a calcular sem parar.
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
   const demoCtx = useDemo();
   const isDemo = !!demoCtx?.isDemo;
   const both = rental.with_driver && rental.allows_self_drive;
@@ -49,10 +53,16 @@ export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }
     let alive = true;
     setQuoting(true);
     const t = window.setTimeout(async () => {
-      const q = await quoteRental(rental.id, plan, qty, withDriver);
-      if (!alive) return;
-      setQuote(q);
-      setQuoting(false);
+      try {
+        const q = await quoteRental(rental.id, plan, qty, withDriver);
+        if (alive) setQuote(q);
+      } catch {
+        // O preço vem sempre do servidor: não inventamos um número nem
+        // deixamos o ecrã no «a calcular o preço» quando a rede cai.
+        if (alive) { setQuote(null); onErrorRef.current('Não foi possível calcular o preço. Tente de novo.'); }
+      } finally {
+        if (alive) setQuoting(false);
+      }
     }, 260);
     return () => { alive = false; window.clearTimeout(t); };
   }, [rental, plan, qty, withDriver, isDemo]);
@@ -258,7 +268,7 @@ export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }
               ))}
             </div>
             <div className="px-4 py-3 bg-purple-600 dark:bg-[#3a1a6e] text-white flex items-center justify-between">
-              <span className="text-label font-semibold">{planText(plan, qty)} · {withDriver ? 'com motorista' : 'self-drive'}</span>
+              <span className="text-label font-semibold">{planText(plan, qty)} · {withDriver ? 'com motorista' : 'sem motorista'}</span>
               <span className="text-xl font-bold tracking-tight tabular-nums dark:text-amber-300">{formatKz(quote.priceKz)}</span>
             </div>
             <p className="px-4 py-2.5 text-caption font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">

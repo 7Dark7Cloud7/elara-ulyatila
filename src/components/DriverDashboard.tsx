@@ -121,6 +121,10 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
   const onlineRef = useRef(driver.online);
   onlineRef.current = driver.online;
   const knownIds = useRef<Set<string> | null>(null);
+  // A praça lê-se também de realtime; pôr `onError` nas dependências do
+  // `loadFeed` faria o efeito remontar a cada render do pai.
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   const home = zones.find((z) => z.id === driver.home_zone_id) ?? null;
   const cls = classes.find((c) => c.id === driver.class_id) ?? null;
@@ -133,26 +137,34 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
 
   const loadFeed = useCallback(async () => {
     if (isDemo) return;
-    const { data } = await supabase
-      .from('tr_trips_open')
-      .select('*')
-      .eq('class_id', driver.class_id)
-      .order('created_at', { ascending: true })
-      .limit(30);
-    const rows = (data as OpenTrip[]) ?? [];
-    // Um pedido acabado de cair na praça faz vibrar o telemóvel e acende o
-    // cartão: é assim que se conduz com a app no suporte e não no olho.
-    if (knownIds.current && driver.online) {
-      const fresh = rows.find((r) => !knownIds.current!.has(r.id));
-      if (fresh) {
-        setFlashId(fresh.id);
-        if ('vibrate' in navigator) navigator.vibrate?.([90, 60, 90]);
-        window.setTimeout(() => setFlashId((f) => (f === fresh.id ? null : f)), 7000);
+    try {
+      const { data, error } = await supabase
+        .from('tr_trips_open')
+        .select('*')
+        .eq('class_id', driver.class_id)
+        .order('created_at', { ascending: true })
+        .limit(30);
+      if (error) { onErrorRef.current(rpcError(error)); return; }
+      const rows = (data as OpenTrip[]) ?? [];
+      // Um pedido acabado de cair na praça faz vibrar o telemóvel e acende o
+      // cartão: é assim que se conduz com a app no suporte e não no olho.
+      if (knownIds.current && driver.online) {
+        const fresh = rows.find((r) => !knownIds.current!.has(r.id));
+        if (fresh) {
+          setFlashId(fresh.id);
+          if ('vibrate' in navigator) navigator.vibrate?.([90, 60, 90]);
+          window.setTimeout(() => setFlashId((f) => (f === fresh.id ? null : f)), 7000);
+        }
       }
+      knownIds.current = new Set(rows.map((r) => r.id));
+      setLiveFeed(rows);
+    } catch {
+      onErrorRef.current('Não foi possível atualizar a praça de pedidos.');
+    } finally {
+      // Mesmo com a rede pelo meio, o «a carregar» tem de sair: senão o
+      // motorista fica à espera de pedidos que a app já não consegue ler.
+      setLiveLoadingFeed(false);
     }
-    knownIds.current = new Set(rows.map((r) => r.id));
-    setLiveFeed(rows);
-    setLiveLoadingFeed(false);
   }, [driver.class_id, driver.online, isDemo]);
 
   const loadActiveTrip = useCallback(async () => {

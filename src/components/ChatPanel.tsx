@@ -104,28 +104,42 @@ export function ChatPanel({ tripId, myRole, seed, lockNote }: ChatPanelProps) {
       id: tempId, trip_id: tripId, sender_role: myRole, text: body, at: Date.now(),
     } as ChatMessage;
     setMessages((prev) => [...prev, temp]);
-    const { data, error } = await supabase
-      .from('tr_chat_message')
-      .insert({
-        trip_id: tripId,
-        sender_role: myRole,
-        text: body,
-        at: Date.now(),
-      })
-      .select()
-      .single();
-    setMessages((prev) => {
-      const rest = prev.filter((m) => m.id !== tempId);
-      return error ? rest : [...rest, data as ChatMessage];
-    });
-    if (error) setText(body);
-    else buzz(40);
-    setBusy(false);
+    try {
+      const { data, error } = await supabase
+        .from('tr_chat_message')
+        .insert({
+          trip_id: tripId,
+          sender_role: myRole,
+          text: body,
+          at: Date.now(),
+        })
+        .select()
+        .single();
+      setMessages((prev) => {
+        const rest = prev.filter((m) => m.id !== tempId);
+        return error ? rest : [...rest, data as ChatMessage];
+      });
+      if (error) setText(body);
+      else buzz(40);
+    } catch {
+      // O `insert` pode lançar antes de devolver `error`: sem isto a mensagem
+      // temporária ficava pendurada, o texto desaparecia e o campo bloqueava.
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setText(body);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <div className="surface-card rounded-card overflow-hidden">
-      <div className="h-64 overflow-y-auto overscroll-contain bg-cream/60 dark:bg-night/50 p-3 space-y-2 custom-scrollbar">
+      <div
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+        aria-label="Mensagens da viagem"
+        className="h-64 overflow-y-auto overscroll-contain bg-cream/60 dark:bg-night/50 p-3 space-y-2 custom-scrollbar"
+      >
         {loading && (
           <div className="h-full flex items-center justify-center text-zinc-400">
             <SpinnerIcon className="w-5 h-5 animate-spin" />
@@ -180,7 +194,7 @@ export function ChatPanel({ tripId, myRole, seed, lockNote }: ChatPanelProps) {
             onClick={() => send(q)}
             disabled={busy}
             className={cn(
-              'shrink-0 rounded-full px-3 py-1.5 text-caption font-semibold border transition-colors',
+              'shrink-0 rounded-full px-3 min-h-11 flex items-center text-caption font-semibold border transition-colors',
               busy ? OFF : 'surface-outline text-ink dark:text-zinc-200',
             )}
           >{q}</button>

@@ -191,15 +191,22 @@ export default function App() {
 
   // Sessão: a mesma conta do Elara.
   useEffect(() => {
+    let alive = true;
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setUser(session?.user ? await sessionUserFromAuth(session.user) : null);
-      setAuthKnown(true);
+      const next = session?.user ? await sessionUserFromAuth(session.user) : null;
+      if (alive) { setUser(next); setAuthKnown(true); }
+    }, () => {
+      // A leitura da sessão falhou (rede, não permissão). Ficar à espera para
+      // sempre deixava o ecrã de abertura preso e o botão «Entrar» escondido:
+      // seguimos como visitante, que é o estado honesto quando não sabemos
+      // quem está ao volante.
+      if (alive) { setUser(null); setAuthKnown(true); }
     });
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ? await sessionUserFromAuth(session.user) : null);
       setAuthKnown(true);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => { alive = false; sub.subscription.unsubscribe(); };
   }, []);
 
   // Colar a ligação noutra janela do mesmo separador não recarrega a app: a
@@ -243,6 +250,15 @@ export default function App() {
       setOrderLoading(false);
       if (!o) { setOrderMissing(true); return; }
       setOrderRow(o);
+    }, () => {
+      // Falha de rede não é «encomenda não está nesta conta» — dizer isso
+      // seria mentira. Tiramos o «a ler», avisamos, e deixamos o código livre
+      // para outra tentativa se a pessoa voltar a abrir a ligação.
+      setOrderLoading(false);
+      setOrderMissing(false);
+      setOrderRow(null);
+      fetchedOrder.current = null;
+      notify('Não foi possível ler a encomenda. Tente de novo.', 'err');
     });
   }, [pendingOrder, authKnown, user, notify]);
 

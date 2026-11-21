@@ -33,6 +33,11 @@ export function Sheet({ open, title, onClose, children, tall }: SheetProps) {
     if (!open) return;
     const dialog = dialogRef.current;
     const previous = document.activeElement as HTMLElement | null;
+    // A folha tem o seu próprio scroll: sem isto, uma lista longa fecha e a
+    // página de trás salta para onde o dedo deslizou. Guardamos o valor anterior
+    // para devolver exactamente o que havia (nunca forçar `''` às cegas).
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
 
     const focusable = () => {
       if (!dialog) return [] as HTMLElement[];
@@ -63,6 +68,7 @@ export function Sheet({ open, title, onClose, children, tall }: SheetProps) {
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
       // Devolver o foco a quem abriu a folha — sem isto, o teclado fica preso
       // num botão que já não existe depois de fechar.
       if (previous && document.contains(previous)) previous.focus();
