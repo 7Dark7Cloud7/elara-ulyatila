@@ -33,13 +33,16 @@ export type { VehicleKind } from './vehicleShapes';
  */
 export const INK: Ink = {
   body: 'fill-purple-600 dark:fill-purple-400',
-  edge: 'stroke-purple-900/35 dark:stroke-black/45',
+  edge: 'stroke-purple-900/40 dark:stroke-purple-950/60',
   shade: 'fill-purple-700 dark:fill-purple-600',
-  glass: 'fill-white/90 dark:fill-zinc-100/85',
-  tyre: 'fill-zinc-800',
+  sheen: 'fill-purple-400/40 dark:fill-white/25',
+  glass: 'fill-white/90 dark:fill-zinc-100/90',
+  glint: 'fill-white/75 dark:fill-white/45',
+  tyre: 'fill-zinc-900 dark:fill-zinc-950',
   rim: 'fill-zinc-200 dark:fill-zinc-100',
+  spoke: 'stroke-zinc-600 dark:stroke-zinc-500',
   road: 'fill-zinc-300 dark:fill-zinc-600',
-  seam: 'stroke-zinc-900/25 dark:stroke-zinc-950/50',
+  seam: 'stroke-purple-950/25 dark:stroke-purple-950/55',
   front: 'fill-amber-400 dark:fill-amber-300',
   back: 'fill-red-500 dark:fill-red-400',
   line: 'stroke-purple-600 dark:stroke-purple-400',
@@ -50,13 +53,16 @@ export const INK: Ink = {
 // a ser a cor do fundo a deixá-la aparecer por trás.
 export const ACTIVE: Ink = {
   body: 'fill-white dark:fill-ink',
-  edge: 'stroke-purple-900/40 dark:stroke-black/50',
-  shade: 'fill-purple-200 dark:fill-white/25',
-  glass: 'fill-purple-800/45 dark:fill-amber-100/70',
-  tyre: 'fill-purple-950/70 dark:fill-ink',
-  rim: 'fill-white/85 dark:fill-amber-200',
-  road: 'fill-white/45 dark:fill-ink/35',
-  seam: 'stroke-purple-900/30 dark:stroke-white/30',
+  edge: 'stroke-purple-900/40 dark:stroke-purple-950/60',
+  shade: 'fill-purple-200 dark:fill-purple-700',
+  sheen: 'fill-purple-100/80 dark:fill-amber-200/20',
+  glass: 'fill-purple-800/45 dark:fill-amber-100/80',
+  glint: 'fill-white/50 dark:fill-white/45',
+  tyre: 'fill-purple-950/85 dark:fill-night',
+  rim: 'fill-white/95 dark:fill-amber-200',
+  spoke: 'stroke-purple-700/60 dark:stroke-ink/60',
+  road: 'fill-white/50 dark:fill-ink/35',
+  seam: 'stroke-purple-900/30 dark:stroke-white/25',
   front: 'fill-amber-300 dark:fill-white',
   back: 'fill-red-300 dark:fill-red-500',
   line: 'stroke-white dark:stroke-ink',
@@ -83,9 +89,9 @@ export function VehicleArt({ kind, tone = 'idle', className, label }: VehicleArt
       className={className}
     >
       {label ? <title>{label}</title> : null}
-      {/* A sombra no chão é o que separa o vector do papel: sem ela a silhueta
-          flutua e o desenho lê-se como ícone, não como veículo. */}
-      <ellipse cx="110" cy="100.5" rx="74" ry="4.5" className="fill-black/[0.07] dark:fill-black/30" />
+      {/* Dupla sombra de contacto no chão: núcleo firme + penumbra larga */}
+      <ellipse cx="110" cy="102" rx="80" ry="5.2" className="fill-black/[0.06] dark:fill-black/25" />
+      <ellipse cx="110" cy="102.5" rx="64" ry="2.8" className="fill-black/[0.09] dark:fill-black/40" />
       {art}
       <Road c={c} />
     </svg>

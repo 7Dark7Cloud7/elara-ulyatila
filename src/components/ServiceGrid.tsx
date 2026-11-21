@@ -1,5 +1,7 @@
+import { useState } from 'react';
+import { CheckIcon } from './ElaraIcons';
 import { cn } from '../lib/utils';
-import type { ServiceArtId } from './ServiceArt';
+import { ServiceArt, type ServiceArtId } from './ServiceArt';
 
 /** Os seis serviços da porta principal. */
 export type Service = 'carro' | 'moto' | 'partilha' | 'entrega' | 'mudanca';
@@ -30,15 +32,18 @@ const TILES: Array<{ id: Service | 'alugar'; label: string; art: ServiceArtId; m
 ];
 
 /**
- * Seis portas em duas colunas com ilustrações 3D de estúdio (inspiradas no
- * padrão Yango, vestidas com a paleta Elara: branco pérola, roxo real e ouro
- * champanhe). A escolhida acende em violeta (claro) ou ouro (escuro).
+ * Seis portas em duas colunas com ilustrações 3D de estúdio (vestidas na paleta
+ * Elara: branco pérola, roxo real e ouro champanhe) e fallback vectorial
+ * automático em `ServiceArt` caso uma imagem não carregue.
  */
 export function ServiceGrid({ value, onPick, onRent }: ServiceGridProps) {
+  const [failed, setFailed] = useState<Record<string, boolean>>({});
+
   return (
     <div className="grid grid-cols-2 gap-2.5" role="group" aria-label="Serviços">
       {TILES.map(({ id, label, art, micro }) => {
         const active = id === value;
+        const useVector = !!failed[art];
         return (
           <button
             key={id}
@@ -46,7 +51,7 @@ export function ServiceGrid({ value, onPick, onRent }: ServiceGridProps) {
             aria-pressed={id === 'alugar' ? undefined : active}
             onClick={() => (id === 'alugar' ? onRent() : onPick(id))}
             className={cn(
-              'group relative flex min-h-[132px] flex-col rounded-card border p-2 text-left',
+              'group relative flex min-h-[134px] flex-col rounded-card border p-2 text-left',
               'transition-all duration-200 active:scale-[0.98]',
               active
                 ? 'border-purple-500 bg-gradient-to-br from-purple-100 to-purple-50 shadow-float dark:border-amber-400/70 dark:from-amber-400/[0.16] dark:to-amber-400/[0.04]'
@@ -57,22 +62,32 @@ export function ServiceGrid({ value, onPick, onRent }: ServiceGridProps) {
               className={cn(
                 'relative flex h-[78px] w-full items-center justify-center overflow-hidden rounded-[14px] px-1.5',
                 active
-                  ? 'bg-white/85 dark:bg-white/[0.10]'
+                  ? 'bg-white/90 dark:bg-white/[0.11]'
                   : 'bg-gradient-to-b from-zinc-100/90 to-zinc-50/70 dark:from-white/[0.09] dark:to-white/[0.03]',
               )}
             >
-              <img
-                src={`/icons-3d/${art}.png`}
-                alt=""
-                aria-hidden="true"
-                decoding="async"
-                className="h-[72px] w-auto max-w-full object-contain drop-shadow-[0_4px_8px_rgba(20,8,38,0.18)] transition-transform duration-200 group-hover:scale-[1.06] group-active:scale-95"
-              />
+              {useVector ? (
+                <ServiceArt
+                  id={art}
+                  className="h-[66px] w-auto max-w-full transition-transform duration-200 group-hover:scale-[1.06] group-active:scale-95"
+                />
+              ) : (
+                <img
+                  src={`/icons-3d/${art}.png`}
+                  alt=""
+                  aria-hidden="true"
+                  decoding="async"
+                  onError={() => setFailed((prev) => ({ ...prev, [art]: true }))}
+                  className="h-[72px] w-auto max-w-full object-contain drop-shadow-[0_6px_10px_rgba(20,8,38,0.18)] transition-transform duration-200 group-hover:scale-[1.06] group-active:scale-95"
+                />
+              )}
               {active && (
                 <span
                   aria-hidden="true"
-                  className="absolute top-2 right-2 h-2 w-2 rounded-full bg-purple-600 dark:bg-amber-400"
-                />
+                  className="absolute top-1.5 right-1.5 grid h-5 w-5 place-items-center rounded-full bg-purple-600 text-white shadow-hair dark:bg-amber-400 dark:text-ink"
+                >
+                  <CheckIcon className="h-3 w-3" strokeWidth={2.6} />
+                </span>
               )}
             </span>
             <span

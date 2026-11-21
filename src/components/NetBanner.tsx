@@ -32,18 +32,18 @@ export function NetBanner() {
         role="status"
         aria-live="polite"
         className={cn(
-          'animate-enter flex items-start gap-3 rounded-2xl border p-3 shadow-float',
+          'animate-enter flex items-start gap-3 rounded-card border p-3.5 shadow-float',
           semLigacao
             ? 'bg-red-50 dark:bg-red-950/50 border-red-200 dark:border-red-900'
-            : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700',
+            : 'surface-card',
         )}
       >
         {semLigacao
           ? <WifiOff className="w-4 h-4 mt-0.5 shrink-0 text-red-600 dark:text-red-400" />
-          : <SignalLow className="w-4 h-4 mt-0.5 shrink-0 text-purple-600 dark:text-purple-400" />}
+          : <SignalLow className="w-4 h-4 mt-0.5 shrink-0 text-purple-600 dark:text-amber-400" />}
 
         <p className={cn(
-          'flex-1 text-[12px] font-medium leading-relaxed',
+          'flex-1 text-caption font-medium leading-relaxed',
           semLigacao ? 'text-red-800 dark:text-red-200' : 'text-zinc-600 dark:text-zinc-300',
         )}>
           {semLigacao ? MSG.offline : MSG.slow}
@@ -52,7 +52,7 @@ export function NetBanner() {
         {!semLigacao && (
           <button
             onClick={() => setPref('lowData', true)}
-            className="shrink-0 h-11 px-4 rounded-xl bg-purple-50 dark:bg-purple-900/40 border border-purple-200 dark:border-purple-800 text-[13px] font-bold text-purple-700 dark:text-purple-300 active:scale-95 transition self-center"
+            className="shrink-0 h-10 px-3.5 rounded-control bg-purple-50 dark:bg-amber-400/[0.14] border border-purple-200 dark:border-amber-400/40 text-label font-semibold text-purple-700 dark:text-amber-200 active:scale-95 transition self-center"
           >
             Poupar dados
           </button>

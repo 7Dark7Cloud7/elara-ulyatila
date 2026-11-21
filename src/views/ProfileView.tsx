@@ -1,10 +1,16 @@
+import { useState } from 'react';
 import {
-  ChevronRight, FileJson, FlaskConical, Gauge, LifeBuoy, LogOut, Moon, ShieldAlert,
-  Sun, Users,
-} from 'lucide-react';
+  ChevronRightIcon, DataDocIcon, DemoFlaskIcon, ExternalLinkIcon, GaugeIcon,
+  HelpRingIcon, LogoutIcon, MoonIcon, PackageIcon, RefreshIcon, SosShieldIcon,
+  SunIcon, UsersIcon,
+} from '../components/ElaraIcons';
 import type { Driver, SessionUser } from '../types';
 import { setPref, usePrefs } from '../lib/alerts';
+import { ELARA_MARKET_URL, normalizeOrderCode } from '../lib/orders';
+import type { TrustedContact } from '../lib/localExtras';
 import { ReferralCard } from '../components/ReferralCard';
+import { TrustedContacts } from '../components/TrustedContacts';
+import { ServiceArt } from '../components/ServiceArt';
 import { cn } from '../lib/utils';
 
 interface ProfileViewProps {
@@ -21,10 +27,12 @@ interface ProfileViewProps {
   onTeam: () => void;
   onLogout: () => void;
   onError: (message: string, tone?: 'ok' | 'err') => void;
-  /** Corre a viagem inteira sem servidor: preço, aceitação, chegada e fecho. */
+  /** Liga toda a app em modo demonstração local, sem tocar no servidor. */
   demo: boolean;
   onDemo: (on: boolean) => void;
-  onOpenDemo: () => void;
+  onResetDemo: () => void;
+  onTrustedContactsChanged?: (contacts: TrustedContact[]) => void;
+  onImportOrder?: (code: string) => void;
 }
 
 /**
@@ -34,11 +42,27 @@ interface ProfileViewProps {
  */
 export function ProfileView({
   user, driver, driverLoading, dark, onToggleTheme, onLogin, onDriver,
-  onSos, onHelp, onData, onTeam, onLogout, onError, demo, onDemo, onOpenDemo,
+  onSos, onHelp, onData, onTeam, onLogout, onError, demo, onDemo, onResetDemo,
+  onTrustedContactsChanged, onImportOrder,
 }: ProfileViewProps) {
   const prefs = usePrefs();
+  const [driverImgFailed, setDriverImgFailed] = useState(false);
+  const [orderInput, setOrderInput] = useState('');
+  const [orderErr, setOrderErr] = useState<string | null>(null);
   const initials = (user?.name ?? '')
     .split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
+
+  const handleImportOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = normalizeOrderCode(orderInput);
+    if (!code) {
+      setOrderErr('Escreva um código válido (ex.: ELR-482910).');
+      return;
+    }
+    setOrderErr(null);
+    setOrderInput('');
+    onImportOrder?.(code);
+  };
 
   return (
     <div className="animate-enter space-y-4 pb-8">
@@ -85,11 +109,21 @@ export function ProfileView({
         className="surface-card flex w-full items-center gap-3 rounded-card p-3.5 text-left transition-all hover:border-purple-300 active:scale-[0.99] dark:hover:border-amber-400/50"
       >
         <span className="flex h-12 w-14 shrink-0 items-center justify-center rounded-[12px] bg-zinc-100/90 px-1 dark:bg-white/[0.08]">
-          <img src="/icons-3d/carro.png" alt="" aria-hidden="true" className="h-9 w-auto object-contain" />
+          {driverImgFailed ? (
+            <ServiceArt id="carro" className="h-9 w-11" />
+          ) : (
+            <img
+              src="/icons-3d/carro.png"
+              alt=""
+              aria-hidden="true"
+              onError={() => setDriverImgFailed(true)}
+              className="h-9 w-auto object-contain"
+            />
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 text-body font-semibold text-ink dark:text-white">
-            <Gauge className="h-4 w-4 shrink-0 text-purple-600 dark:text-amber-400" strokeWidth={1.8} />
+            <GaugeIcon className="h-4 w-4 shrink-0 text-purple-600 dark:text-amber-400" />
             {driver?.status === 'approved' ? 'Painel do motorista' : 'Quero conduzir com a Elara'}
           </span>
           <span className="mt-0.5 block text-label text-zinc-500 dark:text-zinc-400">
@@ -102,14 +136,69 @@ export function ProfileView({
                   : 'Moto, carro, Hiace, Canter ou camião.'}
           </span>
         </span>
-        <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden="true" />
+        <ChevronRightIcon className="h-5 w-5 shrink-0 text-zinc-400 dark:text-zinc-500" />
       </button>
 
       {/* Emergência, ajuda e dados: as três coisas que se procuram com pressa */}
       <div className="grid grid-cols-3 gap-2">
-        <QuickAction icon={<ShieldAlert className="h-5 w-5" />} label="SOS" hint="111" onClick={onSos} danger />
-        <QuickAction icon={<LifeBuoy className="h-5 w-5" />} label="Ajuda" hint="preço · código" onClick={onHelp} />
-        <QuickAction icon={<FileJson className="h-5 w-5" />} label="Dados" hint="exportar · apagar" onClick={onData} />
+        <QuickAction icon={<SosShieldIcon className="h-5 w-5" />} label="SOS" hint="111" onClick={onSos} danger />
+        <QuickAction icon={<HelpRingIcon className="h-5 w-5" />} label="Ajuda" hint="preço · código" onClick={onHelp} />
+        <QuickAction icon={<DataDocIcon className="h-5 w-5" />} label="Dados" hint="exportar · apagar" onClick={onData} />
+      </div>
+
+      {/* Contactos de confiança para partilha rápida e SOS (guardados só neste telemóvel) */}
+      <TrustedContacts onChanged={onTrustedContactsChanged} onNotify={onError} />
+
+      {/* Ponte directa com o Elara Marketplace (mesma conta e entregas ligadas) */}
+      <div className="surface-card rounded-card p-4 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="eyebrow text-purple-700 dark:text-amber-400">Ecossistema Elara</p>
+            <h2 className="mt-0.5 text-body font-semibold text-ink dark:text-white flex items-center gap-1.5">
+              <PackageIcon className="h-4 w-4 shrink-0 text-purple-600 dark:text-amber-400" />
+              Elara Marketplace
+            </h2>
+            <p className="mt-1 text-label leading-snug text-zinc-500 dark:text-zinc-400">
+              A sua conta Ulyatila é a mesma da loja Elara. Traga uma encomenda pelo código para pedir estafeta sem reescrever os dados.
+            </p>
+          </div>
+        </div>
+        <a
+          href={ELARA_MARKET_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="surface-outline flex h-11 w-full items-center justify-center gap-2 rounded-control text-label font-semibold text-purple-700 dark:text-amber-300"
+        >
+          Abrir Elara Marketplace <ExternalLinkIcon className="h-3.5 w-3.5" />
+        </a>
+        {onImportOrder && (
+          <form onSubmit={handleImportOrder} className="space-y-1.5 border-t border-zinc-100 pt-3 dark:border-white/10">
+            <label htmlFor="elara-order-code" className="block text-caption font-semibold text-zinc-600 dark:text-zinc-300">
+              Trazer encomenda por código
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="elara-order-code"
+                value={orderInput}
+                onChange={(e) => { setOrderInput(e.target.value); if (orderErr) setOrderErr(null); }}
+                placeholder="Ex.: ELR-482910"
+                maxLength={48}
+                className="h-11 min-w-0 flex-1 rounded-control border border-zinc-200 bg-zinc-50 px-3 text-body font-semibold text-ink outline-none focus:border-purple-500 dark:border-[rgba(185,168,220,0.3)] dark:bg-white/[0.06] dark:text-white dark:focus:border-amber-400"
+              />
+              <button
+                type="submit"
+                className="btn-main h-11 shrink-0 rounded-control px-3.5 text-label font-semibold"
+              >
+                Trazer
+              </button>
+            </div>
+            {orderErr && (
+              <p role="alert" className="text-caption font-semibold text-red-700 dark:text-red-300">
+                {orderErr}
+              </p>
+            )}
+          </form>
+        )}
       </div>
 
       {/* Aparência e avisos */}
@@ -119,7 +208,7 @@ export function ProfileView({
           hint="A tela principal nasce em ameixa; o claro é uma escolha."
           on={dark}
           onToggle={onToggleTheme}
-          icon={dark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+          icon={dark ? <MoonIcon className="h-4 w-4" /> : <SunIcon className="h-4 w-4" />}
         />
         <ToggleRow
           label="Som de chegada"
@@ -147,7 +236,7 @@ export function ProfileView({
         />
       </div>
 
-      {/* Demonstração: o fluxo inteiro sem tocar no servidor. */}
+      {/* Demonstração integrada: desbloqueia toda a app real localmente, sem ecrã separado. */}
       <div className={cn(
         'rounded-card border p-4',
         demo
@@ -159,13 +248,12 @@ export function ProfileView({
             'grid h-10 w-10 shrink-0 place-items-center rounded-full',
             demo ? 'bg-purple-600 text-white dark:bg-amber-400 dark:text-ink' : 'bg-zinc-100 text-zinc-600 dark:bg-white/[0.08] dark:text-zinc-300',
           )}>
-            <FlaskConical className="h-5 w-5" strokeWidth={1.8} />
+            <DemoFlaskIcon className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-body font-semibold text-ink dark:text-white">Modo demonstração</p>
             <p className="mt-0.5 text-label leading-snug text-zinc-500 dark:text-zinc-400">
-              Corre a viagem toda sem servidor: preço, motorista a aceitar, chegada, fecho e avaliação.
-              Tudo fica no telemóvel e leva a marca DEMO.
+              Abre a app inteira com conta, motorista aprovado com carro, carteira com saldo, corridas, entregas e aluguer. Tudo fica neste telemóvel, sem tocar no servidor.
             </p>
           </div>
           <button
@@ -186,15 +274,16 @@ export function ProfileView({
         </div>
         {demo && (
           <button
-            onClick={onOpenDemo}
-            className="mt-3 h-11 w-full rounded-control bg-purple-600 text-label font-semibold text-white dark:bg-amber-400 dark:text-ink"
+            type="button"
+            onClick={onResetDemo}
+            className="surface-outline mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-control text-label font-semibold text-purple-700 dark:text-amber-300"
           >
-            Abrir o simulador
+            <RefreshIcon className="h-4 w-4" /> Reiniciar dados de demonstração
           </button>
         )}
       </div>
 
-      <ReferralCard onError={(m, tone) => onError(m, tone)} />
+      {user && !demo && <ReferralCard onError={(m, tone) => onError(m, tone)} />}
 
       {user?.isAdmin && (
         <button
@@ -202,9 +291,9 @@ export function ProfileView({
           className="surface-card flex w-full items-center justify-between gap-2 rounded-card p-4 text-body font-semibold text-ink dark:text-white"
         >
           <span className="flex items-center gap-2.5">
-            <Users className="h-4 w-4 text-purple-600 dark:text-amber-400" /> Consola da equipa
+            <UsersIcon className="h-4 w-4 text-purple-600 dark:text-amber-400" /> Consola da equipa
           </span>
-          <ChevronRight className="h-5 w-5 text-zinc-400" aria-hidden="true" />
+          <ChevronRightIcon className="h-5 w-5 text-zinc-400" />
         </button>
       )}
 
@@ -213,7 +302,7 @@ export function ProfileView({
           onClick={onLogout}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-control border border-red-200 bg-red-50 text-body font-semibold text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
         >
-          <LogOut className="h-5 w-5" /> Terminar sessão
+          <LogoutIcon className="h-5 w-5" /> {demo ? 'Sair do modo demonstração' : 'Terminar sessão'}
         </button>
       )}
 

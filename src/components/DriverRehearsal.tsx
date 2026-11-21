@@ -77,24 +77,24 @@ export function DriverRehearsal({ preview, onClose, title = 'Assim vai ser' }: D
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <button
           onClick={onClose}
-          className="tap-pad w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-200"
+          className="surface-outline tap-pad w-10 h-10 rounded-control flex items-center justify-center text-ink dark:text-zinc-200"
           aria-label="Voltar"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">{title}</h2>
+        <h2 className="font-display text-lg font-medium tracking-tight text-ink dark:text-white">{title}</h2>
       </div>
 
       {/* 1 — O cartão que o passageiro lê antes de entrar no carro. */}
-      <section className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-        <p className="px-4 pt-3 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
+      <section className="surface-card rounded-card overflow-hidden">
+        <p className="px-4 pt-3 text-caption font-semibold text-zinc-500 dark:text-zinc-400">
           1 · O que a pessoa que entra no seu carro vê
         </p>
         <div className="p-4 flex items-center gap-3">
-          <span className="relative flex h-14 w-[86px] shrink-0 items-end justify-center rounded-xl bg-purple-50 dark:bg-purple-950/50 overflow-hidden">
+          <span className="relative flex h-14 w-[86px] shrink-0 items-end justify-center rounded-control bg-purple-50 dark:bg-white/[0.05] overflow-hidden">
             <VehicleArt
               kind={vehicleKindFor(preview.classId, preview.classIcon)}
               label={preview.classLabel}
@@ -102,50 +102,50 @@ export function DriverRehearsal({ preview, onClose, title = 'Assim vai ser' }: D
             />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[15px] font-bold text-zinc-900 dark:text-white truncate">
+            <span className="block text-[15px] font-semibold text-ink dark:text-white truncate">
               {preview.publicName || '—'}
             </span>
-            <span className="block text-[12px] font-medium text-zinc-500 dark:text-zinc-400 truncate">
+            <span className="block text-caption font-medium text-zinc-500 dark:text-zinc-400 truncate">
               {preview.classLabel} · {preview.model || '—'} {preview.year || ''}
             </span>
-            <span className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-[12px] font-bold tracking-wide text-zinc-900 dark:text-white">
-              <Car className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+            <span className="mt-1 inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 dark:bg-white/10 px-2 py-1 text-caption font-bold tracking-wide text-ink dark:text-white">
+              <Car className="w-3.5 h-3.5 text-purple-600 dark:text-amber-400" />
               {preview.plate || 'sem matrícula'}
             </span>
           </span>
         </div>
-        <p className="px-4 pb-3 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+        <p className="px-4 pb-3 text-caption font-medium text-zinc-500 dark:text-zinc-400">
           Só isto. O seu telefone nunca aparece ao passageiro, nem o contrário —
           e é por isso que a app não tem botão de chamada.
         </p>
       </section>
 
       {/* 2 — O que ele faz, por ordem. */}
-      <section className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-4">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
+      <section className="surface-card rounded-card p-4">
+        <p className="text-caption font-semibold text-zinc-500 dark:text-zinc-400">
           2 · O que acontece numa viagem, passo a passo
         </p>
         <ol className="mt-3 space-y-2">
           {FLOW.map((s, i) => (
             <li key={s} className="flex items-start gap-2.5">
-              <span className="w-6 h-6 shrink-0 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 flex items-center justify-center text-[12px] font-bold">
+              <span className="w-6 h-6 shrink-0 rounded-lg bg-purple-100 dark:bg-amber-400/[0.16] text-purple-700 dark:text-amber-300 flex items-center justify-center text-caption font-bold">
                 {i + 1}
               </span>
-              <span className="text-[13px] font-bold leading-6 text-zinc-900 dark:text-white">
+              <span className="text-label font-semibold leading-6 text-ink dark:text-white">
                 {STATE_LABEL[s]}
               </span>
             </li>
           ))}
         </ol>
-        <p className="mt-3 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+        <p className="mt-3 text-caption font-medium text-zinc-500 dark:text-zinc-400">
           O código de 4 dígitos diz-se dentro do carro, quando já está ao pé da
           pessoa. Quem lhe pedir o código por telefone ou WhatsApp não é a Elara.
         </p>
       </section>
 
       {/* 3 — O dinheiro, com as condições reais da tr_setting. */}
-      <section className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-4">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
+      <section className="surface-card rounded-card p-4">
+        <p className="text-caption font-semibold text-zinc-500 dark:text-zinc-400">
           3 · Quanto fica para si
         </p>
         {loading && (
@@ -191,25 +191,25 @@ export function DriverRehearsal({ preview, onClose, title = 'Assim vai ser' }: D
       </section>
 
       {/* 4 — O que a equipa faz depois de a pessoa carregar em «entrar». */}
-      <section className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-4">
-        <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
+      <section className="surface-card rounded-card p-4">
+        <p className="text-caption font-semibold text-zinc-500 dark:text-zinc-400">
           4 · Depois de enviar
         </p>
         <ul className="mt-2 space-y-2">
-          <li className="flex items-start gap-2 text-[13px] font-medium leading-snug text-zinc-700 dark:text-zinc-200">
-            <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-purple-600 dark:text-purple-400" />
+          <li className="flex items-start gap-2 text-label font-medium leading-snug text-zinc-700 dark:text-zinc-200">
+            <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-purple-600 dark:text-amber-400" />
             {trial === null
               ? 'As primeiras viagens ficam em período de teste, revisto pela equipa.'
               : `As primeiras ${trial} viagens ficam em período de teste, revisto pela equipa.`}
           </li>
-          <li className="flex items-start gap-2 text-[13px] font-medium leading-snug text-zinc-700 dark:text-zinc-200">
-            <CreditCard className="w-4 h-4 shrink-0 mt-0.5 text-purple-600 dark:text-purple-400" />
+          <li className="flex items-start gap-2 text-label font-medium leading-snug text-zinc-700 dark:text-zinc-200">
+            <CreditCard className="w-4 h-4 shrink-0 mt-0.5 text-purple-600 dark:text-amber-400" />
             A praça é {preview.zoneName ?? 'a que escolher'}
             {preview.province ? ` (${preview.province})` : ''}. É ela que define o
             preço das suas corridas, porque o preço é calculado entre zonas.
           </li>
         </ul>
-        <p className="mt-3 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+        <p className="mt-3 text-caption font-medium text-zinc-500 dark:text-zinc-400">
           A candidatura fica activa no minuto em que entra — o que a segura cá é
           o teste revisto pela equipa, não uma espera de dias. Se a declaração
           não for verdadeira, a equipa suspende a conta.
@@ -218,7 +218,7 @@ export function DriverRehearsal({ preview, onClose, title = 'Assim vai ser' }: D
 
       <button
         onClick={onClose}
-        className="w-full h-12 rounded-2xl font-bold text-[14px] bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100"
+        className="surface-outline w-full h-12 rounded-control font-semibold text-body text-ink dark:text-zinc-100"
       >
         Voltar à candidatura
       </button>
@@ -230,14 +230,14 @@ function Row({ label, price, setting, now }: { label: string; price: number; set
   const split = marginSplit(price, setting, now);
   return (
     <div className="flex items-baseline justify-between gap-2 px-3 py-2.5">
-      <span className="min-w-0 text-[12px] font-medium text-zinc-500 dark:text-zinc-400 truncate">
+      <span className="min-w-0 text-caption font-medium text-zinc-500 dark:text-zinc-400 truncate">
         {label} · corrida de {formatKz(price)}
       </span>
       <span className="shrink-0 text-right">
-        <span className="block text-[13px] font-bold text-zinc-900 dark:text-white">
+        <span className="block text-label font-semibold text-ink dark:text-white tabular-nums">
           fica {formatKz(split.driverKeepsKz)}
         </span>
-        <span className={cn('block text-[12px] font-semibold', split.inGrace ? 'text-purple-700 dark:text-purple-300' : 'text-zinc-500 dark:text-zinc-400')}>
+        <span className={cn('block text-caption font-semibold', split.inGrace ? 'text-purple-700 dark:text-amber-300' : 'text-zinc-500 dark:text-zinc-400')}>
           {split.inGrace ? 'sem taxa agora' : `Elara ${formatKz(split.commissionKz)}`}
         </span>
       </span>

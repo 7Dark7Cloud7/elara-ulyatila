@@ -16,6 +16,16 @@ import type { Zone } from '../types';
  * código (`ELR-......`); o resto é lido pela sessão de quem é dono da compra.
  */
 
+/** Endereço oficial do Elara Marketplace (mesma conta e base de dados). */
+export const ELARA_MARKET_URL = 'https://elara-ao.vercel.app/';
+
+/** Normaliza um código de encomenda colado ou escrito manualmente (`ELR-…` ou `ord_…`). */
+export function normalizeOrderCode(raw: string): string | null {
+  const clean = raw.trim().replace(/^#\/encomenda\//i, '').replace(/^https?:\/\/[^#]+#\/encomenda\//i, '').trim();
+  if (!/^[a-z0-9_-]{6,48}$/i.test(clean)) return null;
+  return /^elr-/i.test(clean) ? clean.toUpperCase() : clean;
+}
+
 export interface ElaraOrder {
   code: string;
   buyerName: string;

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, Loader2, Star, UserRound, Wallet } from 'lucide-react';
+import { ChevronLeftIcon, SpinnerIcon, StarIcon, WalletGlyphIcon } from './ElaraIcons';
+import { NavUserIcon } from './NavIcons';
 import { supabase, rpcError } from '../lib/supabase';
+import { useDemo } from '../lib/demoContext';
+import { computeDemoRentalQuote } from '../lib/demoEngine';
 import type { Rental, RentalPlan, RentalQuote, SessionUser, Zone } from '../types';
 import { VehicleArt, vehicleKindFor } from './VehicleArt';
 import { ZonePicker } from './ZonePicker';
@@ -24,18 +27,25 @@ interface RentalBookingProps {
  * dono. O que a pessoa vê no ecrã é o número que o dono recebe.
  */
 export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }: RentalBookingProps) {
+  const demoCtx = useDemo();
+  const isDemo = !!demoCtx?.isDemo;
   const both = rental.with_driver && rental.allows_self_drive;
   const [plan, setPlan] = useState<RentalPlan>('day');
   const [qty, setQty] = useState(1);
   const [withDriver, setWithDriver] = useState(rental.with_driver || !rental.allows_self_drive);
   const [start, setStart] = useState(defaultStart());
-  const [pickup, setPickup] = useState<string | null>(null);
+  const [pickup, setPickup] = useState<string | null>(isDemo ? (rental.zone_id ?? zones[0]?.id ?? null) : null);
   const [note, setNote] = useState('');
   const [quote, setQuote] = useState<RentalQuote | null>(null);
   const [quoting, setQuoting] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (isDemo) {
+      setQuote(computeDemoRentalQuote(rental, plan, qty, withDriver));
+      setQuoting(false);
+      return;
+    }
     let alive = true;
     setQuoting(true);
     const t = window.setTimeout(async () => {
@@ -45,12 +55,40 @@ export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }
       setQuoting(false);
     }, 260);
     return () => { alive = false; window.clearTimeout(t); };
-  }, [rental.id, plan, qty, withDriver]);
+  }, [rental, plan, qty, withDriver, isDemo]);
 
   const canBook = !!quote && !quoting && !busy && !!pickup && start.length >= 16;
 
   const book = async () => {
-    if (!canBook) return;
+    if (!canBook || !quote) return;
+    if (isDemo && demoCtx) {
+      const now = Date.now();
+      demoCtx.setDemoState((prev) => ({
+        ...prev,
+        rentalRequests: [
+          {
+            id: `dreq-rent-${now}`,
+            rental_id: rental.id,
+            driver_id: rental.driver_id,
+            renter_id: user.uid,
+            renter_name: user.name,
+            plan,
+            qty,
+            with_driver: withDriver,
+            start_at: toMs(start),
+            pickup_zone_id: pickup,
+            note: note.trim(),
+            price_kz: quote.priceKz,
+            state: 'sent',
+            created_at: now,
+            rental: { id: rental.id, title: rental.title, class_id: rental.class_id, price_day_kz: rental.price_day_kz },
+          },
+          ...prev.rentalRequests,
+        ],
+      }));
+      onBooked();
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.rpc('tr_book_rental', {
       p_rental_id: rental.id,
@@ -80,36 +118,33 @@ export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }
     <div className="animate-enter">
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-[13px] font-semibold text-purple-700 dark:text-purple-300 mb-3"
+        className="flex items-center gap-1 text-label font-semibold text-purple-700 dark:text-amber-300 mb-3"
       >
-        <ChevronLeft className="w-4 h-4" /> Todos os carros
+        <ChevronLeftIcon className="w-4 h-4" /> Todos os carros
       </button>
 
-      <div className={cn(
-        'rounded-3xl overflow-hidden border shadow-sm',
-        'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700',
-      )}>
-        <div className="relative flex items-end justify-center h-[120px] bg-gradient-to-b from-purple-100 to-white dark:from-purple-950/60 dark:to-zinc-900">
+      <div className="surface-card rounded-card overflow-hidden">
+        <div className="relative flex items-end justify-center h-[120px] bg-gradient-to-b from-purple-100 to-white dark:from-purple-950/60 dark:to-vault">
           <VehicleArt
             kind={vehicleKindFor(rental.class_id)}
             label={rental.title}
             className="w-[240px] h-auto translate-y-[10px] animate-drive"
           />
-          <span className="absolute top-3 right-3 rounded-full bg-white/90 dark:bg-zinc-900/90 px-2.5 py-1 text-[12px] font-semibold text-purple-700 dark:text-purple-300 shadow">
+          <span className="absolute top-3 right-3 rounded-full bg-white/95 dark:bg-vault/95 border border-zinc-200/80 dark:border-white/15 px-2.5 py-1 text-caption font-semibold text-purple-700 dark:text-amber-300 shadow-card">
             {formatKz(rental.price_day_kz)} / dia
           </span>
         </div>
         <div className="p-4">
-          <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white leading-tight">{rental.title}</h3>
+          <h3 className="font-display text-lg font-medium tracking-tight text-ink dark:text-white leading-tight">{rental.title}</h3>
           {rental.blurb && (
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">{rental.blurb}</p>
+            <p className="text-label text-zinc-500 dark:text-zinc-400 mt-1">{rental.blurb}</p>
           )}
           {owner && (
-            <p className="flex items-center gap-2 text-[12px] font-bold text-zinc-600 dark:text-zinc-300 mt-2">
-              <UserRound className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <p className="flex items-center gap-2 text-caption font-semibold text-zinc-600 dark:text-zinc-300 mt-2">
+              <NavUserIcon className="w-4 h-4 text-purple-600 dark:text-amber-400" />
               {owner.public_name}
               <span className="flex items-center gap-0.5">
-                <Star className="w-3.5 h-3.5 fill-current text-amber-500" />
+                <StarIcon filled className="w-3.5 h-3.5 text-amber-500" />
                 {ratingBadge(owner)}
               </span>
               <span className="text-zinc-500 dark:text-zinc-400">· {owner.model}</span>
@@ -126,28 +161,28 @@ export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }
             onClick={() => { setPlan(p); setQty(p === 'hour' ? Math.max(rental.min_hours, 3) : 1); }}
             aria-pressed={plan === p}
             className={cn(
-              'rounded-2xl border py-2 text-center transition-colors',
+              'rounded-control border py-2 text-center transition-colors',
               plan === p
-                ? 'bg-purple-600 border-purple-600 text-white shadow-card'
-                : 'bg-white dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300',
+                ? 'bg-purple-600 border-purple-600 text-white shadow-card dark:bg-amber-400 dark:border-amber-400 dark:text-ink'
+                : 'surface-card text-zinc-600 dark:text-zinc-300',
             )}
           >
-            <span className="block text-[13px] font-semibold capitalize">{PLAN_LABEL[p]}</span>
-            <span className={cn('block text-[12px] font-medium', plan === p ? 'text-purple-100' : 'text-zinc-500 dark:text-zinc-400')}>
+            <span className="block text-label font-semibold capitalize">{PLAN_LABEL[p]}</span>
+            <span className={cn('block text-[11px] font-medium', plan === p ? 'text-purple-100 dark:text-ink/80' : 'text-zinc-500 dark:text-zinc-400')}>
               {ladder.find((l) => l.p === p)?.hint}
             </span>
           </button>
         ))}
       </div>
 
-      <div className="flex items-center justify-between mt-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3">
-        <span className="font-bold text-sm text-zinc-700 dark:text-zinc-200">{QTY_LABEL[plan]}</span>
+      <div className="surface-card flex items-center justify-between mt-3 rounded-card p-3">
+        <span className="font-semibold text-label text-ink dark:text-zinc-200">{QTY_LABEL[plan]}</span>
         <div className="flex items-center gap-2">
           <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Menos"
-            className="tap-pad w-9 h-9 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-bold tracking-tight text-lg">−</button>
-          <span className="font-bold tracking-tight text-lg w-7 text-center">{qty}</span>
+            className="surface-outline tap-pad w-9 h-9 rounded-control font-bold tracking-tight text-lg text-ink dark:text-white">−</button>
+          <span className="font-bold tracking-tight text-lg w-7 text-center tabular-nums text-ink dark:text-white">{qty}</span>
           <button onClick={() => setQty((q) => Math.min(maxQty, q + 1))} aria-label="Mais"
-            className="tap-pad w-9 h-9 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-bold tracking-tight text-lg">+</button>
+            className="surface-outline tap-pad w-9 h-9 rounded-control font-bold tracking-tight text-lg text-ink dark:text-white">+</button>
         </div>
       </div>
 
@@ -159,10 +194,12 @@ export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }
             disabled={!rental.with_driver}
             aria-pressed={withDriver}
             className={cn(
-              'h-12 rounded-2xl border font-bold text-sm transition-colors',
-              withDriver ? 'bg-purple-100 dark:bg-purple-900/40 border-purple-400 text-purple-800 dark:text-purple-200'
-                : 'bg-white dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300',
-              !rental.with_driver && 'opacity-40',
+              'h-12 rounded-control border font-semibold text-label transition-colors',
+              !rental.with_driver
+                ? OFF
+                : withDriver
+                  ? 'bg-purple-100 border-purple-500 text-purple-800 dark:bg-amber-400/[0.14] dark:border-amber-400 dark:text-amber-200'
+                  : 'surface-card text-zinc-600 dark:text-zinc-300',
             )}
           >
             Com motorista
@@ -172,10 +209,12 @@ export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }
             disabled={!rental.allows_self_drive}
             aria-pressed={!withDriver}
             className={cn(
-              'h-12 rounded-2xl border font-bold text-sm transition-colors',
-              !withDriver ? 'bg-purple-100 dark:bg-purple-900/40 border-purple-400 text-purple-800 dark:text-purple-200'
-                : 'bg-white dark:bg-zinc-800/60 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300',
-              !rental.allows_self_drive && 'opacity-40',
+              'h-12 rounded-control border font-semibold text-label transition-colors',
+              !rental.allows_self_drive
+                ? OFF
+                : !withDriver
+                  ? 'bg-purple-100 border-purple-500 text-purple-800 dark:bg-amber-400/[0.14] dark:border-amber-400 dark:text-amber-200'
+                  : 'surface-card text-zinc-600 dark:text-zinc-300',
             )}
           >
             Para eu conduzir
@@ -183,14 +222,14 @@ export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }
         </div>
       )}
 
-      <div className="mt-3 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3 space-y-3">
+      <div className="surface-card mt-3 rounded-card p-3.5 space-y-3">
         <label className="block">
-          <span className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">Começa a</span>
+          <span className="text-caption font-medium text-zinc-500 dark:text-zinc-400">Começa a</span>
           <input
             type="datetime-local"
             value={start}
             onChange={(e) => setStart(e.target.value)}
-            className="mt-1 w-full h-12 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 outline-none focus:border-purple-400"
+            className="mt-1 w-full h-12 rounded-control bg-white dark:bg-white/[0.06] border border-zinc-200 dark:border-white/15 px-3 text-ink dark:text-white outline-none focus:border-purple-500 dark:focus:border-amber-400"
           />
         </label>
         <ZonePicker label="Onde levanta o carro" value={pickup} zones={zones} onChange={setPickup} />
@@ -199,31 +238,31 @@ export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }
           onChange={(e) => setNote(e.target.value.slice(0, 400))}
           rows={2}
           placeholder="Para que é? (ex.: mudança de casa para o Kilamba, preciso às 8h)"
-          className="w-full rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-3 outline-none focus:border-purple-400"
+          className="w-full rounded-control bg-white dark:bg-white/[0.06] border border-zinc-200 dark:border-white/15 p-3 text-body text-ink dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:border-purple-500 dark:focus:border-amber-400"
         />
       </div>
 
       {/* O preço do servidor, com as linhas de onde ele vem. */}
-      <div className="mt-3 rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+      <div className="surface-card mt-3 rounded-card overflow-hidden">
         {quoting || !quote ? (
-          <p className="p-4 text-sm font-bold text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> a calcular o preço…
+          <p className="p-4 text-label font-semibold text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+            <SpinnerIcon className="w-4 h-4 animate-spin" /> a calcular o preço…
           </p>
         ) : (
           <>
-            <div className="px-4 py-3 space-y-1 bg-white dark:bg-zinc-900">
+            <div className="px-4 py-3 space-y-1">
               {quote.lines.map((l) => (
-                <p key={l.label} className="flex justify-between text-[13px] font-bold text-zinc-600 dark:text-zinc-300">
-                  <span>{l.label}</span><span>{formatKz(l.amountKz)}</span>
+                <p key={l.label} className="flex justify-between text-label font-semibold text-zinc-600 dark:text-zinc-300">
+                  <span>{l.label}</span><span className="tabular-nums">{formatKz(l.amountKz)}</span>
                 </p>
               ))}
             </div>
-            <div className="px-4 py-3 bg-purple-600 text-white flex items-center justify-between">
-              <span className="text-[13px] font-semibold">{planText(plan, qty)} · {withDriver ? 'com motorista' : 'self-drive'}</span>
-              <span className="text-xl font-bold tracking-tight">{formatKz(quote.priceKz)}</span>
+            <div className="px-4 py-3 bg-purple-600 dark:bg-[#3a1a6e] text-white flex items-center justify-between">
+              <span className="text-label font-semibold">{planText(plan, qty)} · {withDriver ? 'com motorista' : 'self-drive'}</span>
+              <span className="text-xl font-bold tracking-tight tabular-nums dark:text-amber-300">{formatKz(quote.priceKz)}</span>
             </div>
-            <p className="px-4 py-2 text-[12px] font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 flex items-center gap-1.5">
-              <Wallet className="w-3.5 h-3.5 shrink-0" />
+            <p className="px-4 py-2.5 text-caption font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+              <WalletGlyphIcon className="w-3.5 h-3.5 shrink-0" />
               Caução {formatKz(quote.depositKz)} · paga-se ao dono, combinado entre vocês. A app não cobra nem guarda este dinheiro.
               {quote.hoursToDay ? ` · ${quote.hoursToDay}h já vale um dia.` : ''}
             </p>
@@ -235,11 +274,11 @@ export function RentalBooking({ rental, user, zones, onBack, onBooked, onError }
         onClick={book}
         disabled={!canBook}
         className={cn(
-          'btn-main mt-4 w-full h-14 rounded-2xl font-bold tracking-tight text-lg flex items-center justify-center gap-2',
-          !canBook && OFF,
+          'mt-4 w-full h-14 rounded-control font-semibold tracking-tight text-body flex items-center justify-center gap-2',
+          canBook ? 'btn-main' : OFF,
         )}
       >
-        {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wallet className="w-5 h-5" />}
+        {busy ? <SpinnerIcon className="w-5 h-5 animate-spin" /> : <WalletGlyphIcon className="w-5 h-5" />}
         {quote ? `Enviar pedido · ${formatKz(quote.priceKz)}` : 'Enviar pedido'}
       </button>
       <p className="text-[12px] text-zinc-500 dark:text-zinc-400 text-center mt-2">

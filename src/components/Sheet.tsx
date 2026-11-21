@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { CloseIcon } from './ElaraIcons';
 import { cn } from '../lib/utils';
 
 interface SheetProps {
@@ -33,8 +33,8 @@ export function Sheet({ open, title, onClose, children, tall }: SheetProps) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center lg:items-center lg:p-8">
-      <button
-        aria-label="Fechar"
+      <div
+        aria-hidden="true"
         onClick={onClose}
         className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm"
       />
@@ -62,7 +62,7 @@ export function Sheet({ open, title, onClose, children, tall }: SheetProps) {
             aria-label="Fechar"
             className="tap-pad p-1 text-zinc-500 dark:text-zinc-400"
           >
-            <X className="w-6 h-6" />
+            <CloseIcon className="w-6 h-6" />
           </button>
         </div>
         <div className="overflow-y-auto overscroll-contain px-5 py-4 pb-safe grow lg:px-6 lg:pb-6">

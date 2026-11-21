@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Send, ShieldAlert } from 'lucide-react';
+import { SendIcon, SosShieldIcon, SpinnerIcon } from './ElaraIcons';
 import { supabase } from '../lib/supabase';
+import { useDemo } from '../lib/demoContext';
+import { appendDemoChatMessage } from '../lib/demoEngine';
 import type { ChatMessage } from '../types';
 import { QUICK_REPLIES } from '../lib/trips';
 import { buzz } from '../lib/alerts';
@@ -24,14 +26,22 @@ interface ChatPanelProps {
  * é o sinal de que alguém tentou desviar o encontro para fora da app.
  */
 export function ChatPanel({ tripId, myRole, seed, lockNote }: ChatPanelProps) {
+  const demoCtx = useDemo();
+  const isDemo = !!demoCtx?.isDemo;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDemo);
   const endRef = useRef<HTMLDivElement>(null);
   const locked = !!lockNote;
 
+  const displayedMessages = isDemo ? (demoCtx?.demoState.chats[tripId] ?? []) : messages;
+
   useEffect(() => {
+    if (isDemo) {
+      setLoading(false);
+      return;
+    }
     let alive = true;
     const load = async () => {
       const { data } = await supabase
@@ -59,8 +69,6 @@ export function ChatPanel({ tripId, myRole, seed, lockNote }: ChatPanelProps) {
       )
       .subscribe();
 
-    // O tempo real falha em silêncio nas redes móveis. Uma leitura de 20 em 20
-    // segundos garante que nenhuma mensagem fica presa num canal morto.
     const poll = window.setInterval(() => {
       if (document.visibilityState === 'visible') load();
     }, 20000);
@@ -70,11 +78,11 @@ export function ChatPanel({ tripId, myRole, seed, lockNote }: ChatPanelProps) {
       window.clearInterval(poll);
       supabase.removeChannel(channel);
     };
-  }, [tripId]);
+  }, [tripId, isDemo]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+  }, [displayedMessages.length]);
 
   useEffect(() => {
     if (seed) setText(seed);
@@ -85,8 +93,12 @@ export function ChatPanel({ tripId, myRole, seed, lockNote }: ChatPanelProps) {
     if (!body || busy) return;
     setBusy(true);
     setText('');
-    // A mensagem aparece já, antes da resposta: num ecrã de viagem ninguém pode
-    // ficar com a dúvida se o que escreveu chegou.
+    if (isDemo && demoCtx) {
+      demoCtx.setDemoState((prev) => appendDemoChatMessage(prev, tripId, myRole, body));
+      buzz(40);
+      setBusy(false);
+      return;
+    }
     const tempId = `tmp-${Date.now()}`;
     const temp = {
       id: tempId, trip_id: tripId, sender_role: myRole, text: body, at: Date.now(),
@@ -112,43 +124,43 @@ export function ChatPanel({ tripId, myRole, seed, lockNote }: ChatPanelProps) {
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-      <div className="h-64 overflow-y-auto overscroll-contain bg-zinc-50 dark:bg-zinc-800/50 p-3 space-y-2 custom-scrollbar">
+    <div className="surface-card rounded-card overflow-hidden">
+      <div className="h-64 overflow-y-auto overscroll-contain bg-cream/60 dark:bg-night/50 p-3 space-y-2 custom-scrollbar">
         {loading && (
           <div className="h-full flex items-center justify-center text-zinc-400">
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <SpinnerIcon className="w-5 h-5 animate-spin" />
           </div>
         )}
-        {!loading && messages.length === 0 && (
-          <p className="h-full flex items-center justify-center text-center text-sm text-zinc-500 dark:text-zinc-400 px-4">
+        {!loading && displayedMessages.length === 0 && (
+          <p className="h-full flex items-center justify-center text-center text-label text-zinc-500 dark:text-zinc-400 px-4">
             Escreva para combinar o encontro. O que se combinar aqui, fica registado.
           </p>
         )}
-        {messages.map((m) => {
+        {displayedMessages.map((m) => {
           const mine = m.sender_role === myRole;
           const blocked = !!m.blocked;
           return (
             <div key={m.id} className={cn('flex', mine ? 'justify-end' : 'justify-start')}>
               <div
                 className={cn(
-                  'max-w-[80%] rounded-2xl px-3.5 py-2',
+                  'max-w-[80%] rounded-control px-3.5 py-2',
                   m.sender_role === 'system'
-                    ? 'mx-auto bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 text-xs text-center'
+                    ? 'mx-auto bg-purple-100 dark:bg-amber-400/[0.14] text-purple-700 dark:text-amber-200 text-caption text-center'
                     : mine
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white',
+                      ? 'bg-purple-600 text-white dark:bg-amber-400 dark:text-ink'
+                      : 'bg-white dark:bg-vault border border-zinc-200 dark:border-white/15 text-ink dark:text-white',
                 )}
               >
                 {blocked && (
-                  <p className={cn('flex items-center gap-1 text-[12px] font-medium mb-0.5',
-                    mine ? 'text-amber-100' : 'text-amber-800 dark:text-amber-200')}>
-                    <ShieldAlert className="w-3 h-3" /> combinou por fora — cuidado com burlas
+                  <p className={cn('flex items-center gap-1 text-caption font-medium mb-0.5',
+                    mine ? 'text-amber-100 dark:text-ink/80' : 'text-amber-800 dark:text-amber-200')}>
+                    <SosShieldIcon className="w-3 h-3" /> combinou por fora — cuidado com burlas
                   </p>
                 )}
-                <p className={cn('text-sm break-words', m.sender_role === 'system' ? 'font-bold' : 'font-medium')}>
+                <p className={cn('text-label break-words', m.sender_role === 'system' ? 'font-semibold' : 'font-medium')}>
                   {m.text}
                 </p>
-                <p className={cn('text-[12px] mt-0.5', mine ? 'text-purple-100' : 'text-zinc-500 dark:text-zinc-400')}>
+                <p className={cn('text-[11px] mt-0.5', mine ? 'text-purple-100 dark:text-ink/70' : 'text-zinc-500 dark:text-zinc-400')}>
                   {when(m.at)}
                 </p>
               </div>
@@ -159,20 +171,17 @@ export function ChatPanel({ tripId, myRole, seed, lockNote }: ChatPanelProps) {
       </div>
 
       {/* O que se repete em toda a corrida, escrito uma vez. Um toque chega e
-          envia — por isso é só para as frases que não precisam de discussão. */}
-      {/* O que se repete em toda a corrida, escrito uma vez. Um toque chega e
           envia — por isso é só para as frases que não precisam de discussão.
           São também elas que ficam quando o teclado está fechado ao volante. */}
-      <div className="h-rail flex gap-2 overflow-x-auto px-2 pt-2 bg-white dark:bg-zinc-900">
+      <div className="h-rail flex gap-2 overflow-x-auto px-2.5 pt-2.5 pb-1 bg-white dark:bg-vault">
         {QUICK_REPLIES[myRole].map((q) => (
           <button
             key={q}
             onClick={() => send(q)}
             disabled={busy}
             className={cn(
-              'shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold border transition-colors',
-              'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200',
-              busy && OFF,
+              'shrink-0 rounded-full px-3 py-1.5 text-caption font-semibold border transition-colors',
+              busy ? OFF : 'surface-outline text-ink dark:text-zinc-200',
             )}
           >{q}</button>
         ))}
@@ -180,29 +189,29 @@ export function ChatPanel({ tripId, myRole, seed, lockNote }: ChatPanelProps) {
 
       {locked ? (
         <p className={cn(
-          'flex items-start gap-2 border-t border-zinc-200 dark:border-zinc-700 p-3',
-          'bg-white dark:bg-zinc-900 text-[13px] font-medium',
+          'flex items-start gap-2 border-t border-zinc-200 dark:border-white/10 p-3',
+          'bg-white dark:bg-vault text-label font-medium',
           'text-zinc-600 dark:text-zinc-300',
         )}>
-          <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <SosShieldIcon className="w-4 h-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
           {lockNote}
         </p>
       ) : (
-        <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-2 border-t border-zinc-200 dark:border-zinc-700">
+        <form onSubmit={(e) => { e.preventDefault(); void send(); }} className="flex items-center gap-2 bg-white dark:bg-vault p-2.5 border-t border-zinc-200 dark:border-white/10">
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Escreva uma mensagem…"
             maxLength={1000}
-            className="grow h-11 rounded-xl bg-zinc-100 dark:bg-zinc-800 px-3.5 outline-none focus:border-purple-400 border border-transparent"
+            className="grow h-11 rounded-control bg-zinc-100 dark:bg-white/[0.07] px-3.5 text-label text-ink dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:border-purple-500 dark:focus:border-amber-400 border border-transparent"
           />
           <button
             type="submit"
             disabled={busy || !text.trim()}
             aria-label="Enviar"
-            className="tap-pad shrink-0 p-2 text-purple-600 dark:text-purple-400 disabled:text-zinc-400 dark:disabled:text-zinc-500"
+            className="tap-pad shrink-0 p-2 text-purple-600 dark:text-amber-400 disabled:text-zinc-400 dark:disabled:text-zinc-500"
           >
-            {busy ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
+            {busy ? <SpinnerIcon className="w-6 h-6 animate-spin" /> : <SendIcon className="w-6 h-6" />}
           </button>
         </form>
       )}

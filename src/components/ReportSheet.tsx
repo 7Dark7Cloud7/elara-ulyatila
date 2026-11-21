@@ -1,7 +1,8 @@
 import { useId, useRef, useState } from 'react';
-import { Flag, Loader2 } from 'lucide-react';
+import { FlagIcon, SpinnerIcon } from './ElaraIcons';
 import type { Trip } from '../types';
 import { supabase, rpcError } from '../lib/supabase';
+import { useDemo } from '../lib/demoContext';
 import { DRIVER_REPORT_REASONS, EMERGENCY_NUMBER, REPORT_REASONS, reportHint } from '../lib/trips';
 import { cn, when, OFF } from '../lib/utils';
 import { Sheet } from './Sheet';
@@ -17,6 +18,7 @@ interface ReportSheetProps {
 }
 
 export function ReportSheet({ onClose, trip, uid, role, onError }: ReportSheetProps) {
+  const demoCtx = useDemo();
   const [reason, setReason] = useState<string | null>(null);
   const [detail, setDetail] = useState('');
   const [sending, setSending] = useState(false);
@@ -33,6 +35,11 @@ export function ReportSheet({ onClose, trip, uid, role, onError }: ReportSheetPr
     setSending(true);
     setError(null);
     try {
+      if (demoCtx?.isDemo) {
+        onClose();
+        onError('Reporte registado (modo demonstração — guardado apenas neste aparelho).', 'ok');
+        return;
+      }
       const { error: failure } = await supabase.from('tr_report').insert({
         trip_id: trip.id,
         by_id: uid,
@@ -90,9 +97,9 @@ export function ReportSheet({ onClose, trip, uid, role, onError }: ReportSheetPr
         onClick={send}
         disabled={!ready}
         aria-busy={sending}
-        className={cn('btn-main mt-4 w-full h-14 rounded-control font-bold text-body flex items-center justify-center gap-2', !ready && OFF)}
+        className={cn('mt-4 w-full h-14 rounded-control font-semibold text-body flex items-center justify-center gap-2', ready ? 'btn-main' : OFF)}
       >
-        {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Flag className="w-5 h-5" />}
+        {sending ? <SpinnerIcon className="w-5 h-5 animate-spin" /> : <FlagIcon className="w-5 h-5" />}
         {sending ? 'A enviar…' : 'Enviar reporte'}
       </button>
     </Sheet>
@@ -107,7 +114,7 @@ export function ReportButton({
       onClick={onOpen}
       className={cn('surface-outline min-h-12 rounded-control px-3 py-2 font-semibold text-label flex items-center justify-center gap-2', className)}
     >
-      <Flag className="w-4 h-4 shrink-0" /> {label}
+      <FlagIcon className="w-4 h-4 shrink-0" /> {label}
     </button>
   );
 }

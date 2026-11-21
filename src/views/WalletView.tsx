@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ArrowDownCircle, ArrowUpCircle, Loader2, Receipt, Wallet as WalletIcon } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  CheckCircleIcon, CloseIcon, ReceiptIcon, SearchIcon, SpinnerIcon,
+  TopUpIcon, TrendDownIcon, TrendUpIcon, WalletGlyphIcon, WithdrawIcon,
+} from '../components/ElaraIcons';
 import { supabase, rpcError } from '../lib/supabase';
 import type { MoneyRequest, SessionUser, WalletTx } from '../types';
-import { cn, when } from '../lib/utils';
+import { filterWalletTxs, summarizeWalletMonth, type WalletDirectionFilter } from '../lib/localExtras';
+import { useDemo } from '../lib/demoContext';
+import { confirmDemoMoneyRequest, requestDemoMoney } from '../lib/demoEngine';
+import { cn, OFF, when } from '../lib/utils';
 import { formatKz } from '../lib/money';
 import { Sheet } from '../components/Sheet';
+import { NavWalletIcon } from '../components/NavIcons';
 
 interface WalletViewProps {
   user: SessionUser | null;
@@ -17,73 +24,98 @@ const TX_LABEL: Record<WalletTx['kind'], string> = {
   payout: 'Levantamento', fee: 'Taxa', refund: 'Devolução',
 };
 
+const QUICK_AMOUNTS = [1000, 2000, 5000, 10000];
+const QUICK_METHODS_IN = ['Multicaixa Express', 'Transferência bancária', 'Agente Elara'];
+const QUICK_METHODS_OUT = ['Multicaixa Express', 'IBAN / Transferência', 'Agente Elara'];
+
+const DIR_FILTERS: Array<{ id: WalletDirectionFilter; label: string }> = [
+  { id: 'all', label: 'Todos' },
+  { id: 'in', label: 'Entradas' },
+  { id: 'out', label: 'Saídas' },
+];
+
 /**
  * A carteira: o saldo só muda quando alguém da equipa confirma o dinheiro que
  * realmente entrou ou saiu. Recarregar aqui é um pedido, não um clique mágico.
  */
 export function WalletView({ user, onLogin, onError }: WalletViewProps) {
-  const [balance, setBalance] = useState<number | null>(null);
-  const [txs, setTxs] = useState<WalletTx[]>([]);
-  const [requests, setRequests] = useState<MoneyRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const demoCtx = useDemo();
+  const isDemo = !!demoCtx?.isDemo;
+  const [liveBalance, setLiveBalance] = useState<number | null>(null);
+  const [liveTxs, setLiveTxs] = useState<WalletTx[]>([]);
+  const [liveRequests, setLiveRequests] = useState<MoneyRequest[]>([]);
+  const [liveLoading, setLiveLoading] = useState(true);
   const [sheet, setSheet] = useState<'in' | 'out' | null>(null);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('');
   const [busy, setBusy] = useState(false);
+  const [dirFilter, setDirFilter] = useState<WalletDirectionFilter>('all');
+  const [query, setQuery] = useState('');
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user || isDemo) return;
     const [w, t, r] = await Promise.all([
       supabase.from('tr_wallet').select('balance_kz').eq('who', user.uid).maybeSingle(),
-      supabase.from('tr_wallet_tx').select('*').eq('who', user.uid).order('at', { ascending: false }).limit(40),
+      supabase.from('tr_wallet_tx').select('*').eq('who', user.uid).order('at', { ascending: false }).limit(60),
       supabase.from('tr_money_request').select('*').eq('who', user.uid).order('at', { ascending: false }).limit(10),
     ]);
-    setBalance(w.data ? (w.data as { balance_kz: number }).balance_kz : 0);
-    setTxs((t.data as WalletTx[]) ?? []);
-    setRequests((r.data as MoneyRequest[]) ?? []);
-    setLoading(false);
-  }, [user]);
+    setLiveBalance(w.data ? (w.data as { balance_kz: number }).balance_kz : 0);
+    setLiveTxs((t.data as WalletTx[]) ?? []);
+    setLiveRequests((r.data as MoneyRequest[]) ?? []);
+    setLiveLoading(false);
+  }, [user, isDemo]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || isDemo) return;
     load();
     const channel = supabase
       .channel(`tr-wallet-${user.uid}`)
       .on(
         'postgres_changes',
-        {
-          event: '*', schema: 'public', table: 'tr_wallet',
-          filter: `who=eq.${user.uid}`,
-        },
+        { event: '*', schema: 'public', table: 'tr_wallet', filter: `who=eq.${user.uid}` },
         () => { load(); },
       )
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT', schema: 'public', table: 'tr_wallet_tx',
-          filter: `who=eq.${user.uid}`,
-        },
+        { event: 'INSERT', schema: 'public', table: 'tr_wallet_tx', filter: `who=eq.${user.uid}` },
         () => { load(); },
       )
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE', schema: 'public', table: 'tr_money_request',
-          filter: `who=eq.${user.uid}`,
-        },
+        { event: 'UPDATE', schema: 'public', table: 'tr_money_request', filter: `who=eq.${user.uid}` },
         () => { load(); },
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user, load]);
+  }, [user, isDemo, load]);
+
+  const balance = isDemo && demoCtx ? demoCtx.demoState.wallet.balanceKz : liveBalance;
+  const txs = isDemo && demoCtx ? demoCtx.demoState.wallet.txs : liveTxs;
+  const requests = isDemo && demoCtx ? demoCtx.demoState.wallet.requests : liveRequests;
+  const loading = isDemo ? false : liveLoading;
+
+  const month = useMemo(() => summarizeWalletMonth(txs), [txs]);
+  const visibleTxs = useMemo(
+    () => filterWalletTxs(txs, { direction: dirFilter, query }),
+    [txs, dirFilter, query],
+  );
 
   if (!user) {
     return (
-      <Empty
-        title="A sua carteira"
-        text="Entre na conta para ver o saldo das corridas, recarregar e pedir levantamentos."
-        action={<button onClick={onLogin} className={btnCls}>Entrar</button>}
-      />
+      <div className="animate-enter space-y-4 pb-8">
+        <div>
+          <p className="eyebrow text-purple-700 dark:text-amber-400">O seu saldo Elara</p>
+          <h1 className="mt-1 font-display text-title font-medium leading-tight text-ink dark:text-white">
+            Carteira
+          </h1>
+        </div>
+        <Empty
+          icon={<NavWalletIcon active className="h-7 w-7" />}
+          title="A sua carteira"
+          text="Entre na conta para acompanhar o saldo das corridas, pedir recargas e levantamentos em Kwanzas."
+          action={<button type="button" onClick={onLogin} className={btnCls}>Entrar na minha conta</button>}
+        />
+      </div>
     );
   }
 
@@ -92,6 +124,12 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
     const value = Number(amount);
     if (!Number.isFinite(value) || value <= 0) { onError('Escreva um valor válido em kwanzas.'); return; }
     if (!method.trim()) { onError('Diga como pretende pagar ou receber (ex.: Multicaixa Express, agente).'); return; }
+    if (isDemo && demoCtx) {
+      demoCtx.setDemoState((prev) => requestDemoMoney(prev, sheet, value, method));
+      setSheet(null); setAmount(''); setMethod('');
+      onError('Pedido demo registado — toque em «Confirmar agora (DEMO)» abaixo para actualizar o saldo.');
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.rpc('tr_request_money', {
       p_direction: sheet,
@@ -109,6 +147,7 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
 
   const pending = requests.filter((r) => r.state === 'pending');
   const refused = requests.filter((r) => r.state === 'rejected');
+  const quickMethods = sheet === 'out' ? QUICK_METHODS_OUT : QUICK_METHODS_IN;
 
   return (
     <div className="animate-enter space-y-4 pb-8">
@@ -119,75 +158,114 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
         </h1>
       </div>
 
-      {/* Saldo em cartão principal alinhado com Viagens e Perfil */}
+      {/* Cartão de saldo unificado */}
       <div className="rounded-card bg-purple-600 p-5 text-white shadow-card dark:bg-[#3a1a6e]">
-        <p className="flex items-center gap-2 text-caption font-semibold tracking-[0.12em] text-purple-100">
-          <WalletIcon className="w-4 h-4" /> Saldo disponível
+        <p className="flex items-center gap-2 text-caption font-semibold uppercase tracking-[0.14em] text-purple-100">
+          <WalletGlyphIcon className="w-4 h-4" /> Saldo disponível
         </p>
         {loading ? (
-          <Loader2 className="w-6 h-6 animate-spin text-purple-100 mt-3" />
+          <SpinnerIcon className="w-6 h-6 animate-spin text-purple-100 mt-3" />
         ) : (
-          <p className="mt-1.5 font-display text-stat font-medium leading-none text-white">
+          <p className="mt-1.5 font-display text-display font-medium leading-none text-white">
             {formatKz(balance ?? 0)}
           </p>
         )}
         <p className="mt-2 text-label text-purple-100">
-          Recargas e levantamentos confirmados pela equipa Elara.
+          {isDemo
+            ? 'Carteira de demonstração — teste recargas, levantamentos e ganhos de corrida.'
+            : 'Recargas e levantamentos confirmados pela equipa Elara.'}
         </p>
         <div className="grid grid-cols-2 gap-2.5 mt-5">
           <button
-            onClick={() => setSheet('in')}
-            className="h-12 rounded-control bg-white text-purple-700 dark:bg-amber-400 dark:text-ink font-semibold flex items-center justify-center gap-2 text-sm active:scale-[0.98] transition-transform"
+            type="button"
+            onClick={() => { setSheet('in'); setAmount(''); setMethod(''); }}
+            className="h-12 rounded-control bg-white text-purple-700 dark:bg-amber-400 dark:text-ink font-semibold flex items-center justify-center gap-2 text-body active:scale-[0.98] transition-transform"
           >
-            <ArrowDownCircle className="w-5 h-5" /> Recarregar
+            <TopUpIcon className="w-5 h-5" /> Recarregar
           </button>
           <button
-            onClick={() => setSheet('out')}
-            className="h-12 rounded-control border border-white/30 bg-white/10 text-white font-semibold flex items-center justify-center gap-2 text-sm active:scale-[0.98] transition-transform"
+            type="button"
+            onClick={() => { setSheet('out'); setAmount(''); setMethod(''); }}
+            className="h-12 rounded-control border border-white/30 bg-white/10 text-white font-semibold flex items-center justify-center gap-2 text-body active:scale-[0.98] transition-transform"
           >
-            <ArrowUpCircle className="w-5 h-5" /> Levantar
+            <WithdrawIcon className="w-5 h-5" /> Levantar
           </button>
         </div>
       </div>
 
-      {/* Pedidos a espera de confirmação */}
+      {/* Resumo mensal de entradas e saídas */}
+      {!loading && txs.length > 0 && (
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="surface-card rounded-card p-3.5">
+            <p className="flex items-center gap-1.5 text-caption font-medium text-zinc-500 dark:text-zinc-400">
+              <TrendUpIcon className="h-3.5 w-3.5 text-purple-600 dark:text-amber-400" /> Entradas este mês
+            </p>
+            <p className="mt-1 font-display text-lead font-semibold text-purple-700 dark:text-amber-300">
+              +{formatKz(month.inKz)}
+            </p>
+          </div>
+          <div className="surface-card rounded-card p-3.5">
+            <p className="flex items-center gap-1.5 text-caption font-medium text-zinc-500 dark:text-zinc-400">
+              <TrendDownIcon className="h-3.5 w-3.5 text-red-600 dark:text-red-400" /> Saídas este mês
+            </p>
+            <p className="mt-1 font-display text-lead font-semibold text-ink dark:text-white">
+              {month.outKz > 0 ? `-${formatKz(month.outKz)}` : formatKz(0)}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Pedidos à espera de confirmação */}
       {pending.length > 0 && (
-        <div className="rounded-3xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-4">
-          <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+        <div className="rounded-card bg-amber-50 dark:bg-amber-950/35 border border-amber-200 dark:border-amber-900 p-4 space-y-2.5">
+          <p className="text-caption font-semibold uppercase tracking-[0.12em] text-amber-800 dark:text-amber-300">
             À espera da equipa
           </p>
           {pending.map((r) => (
-            <div key={r.id} className="flex items-center justify-between gap-3 mt-2 text-sm">
-              <span className="text-amber-800 dark:text-amber-200 font-medium">
-                {r.direction === 'in' ? 'Recarga' : 'Levantamento'} · {r.method}
-              </span>
-              <span className="font-bold text-amber-900 dark:text-amber-100">{formatKz(r.amount_kz)}</span>
+            <div key={r.id} className="space-y-2">
+              <div className="flex items-center justify-between gap-3 text-body">
+                <span className="text-amber-800 dark:text-amber-200 font-medium">
+                  {r.direction === 'in' ? 'Recarga' : 'Levantamento'} · {r.method}
+                </span>
+                <span className="font-semibold text-amber-900 dark:text-amber-100">{formatKz(r.amount_kz)}</span>
+              </div>
+              {isDemo && demoCtx && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    demoCtx.setDemoState((prev) => confirmDemoMoneyRequest(prev, r.id));
+                    onError('Pedido demo confirmado — saldo actualizado.');
+                  }}
+                  className="btn-main flex h-10 w-full items-center justify-center gap-1.5 rounded-control text-label font-semibold"
+                >
+                  <CheckCircleIcon className="h-4 w-4" /> Confirmar agora (DEMO)
+                </button>
+              )}
             </div>
           ))}
-          <p className="text-[12px] text-amber-600 dark:text-amber-400 mt-2">
+          <p className="text-caption text-amber-800/80 dark:text-amber-300/80">
             O saldo só muda quando confirmarmos que o dinheiro entrou ou saiu mesmo.
           </p>
         </div>
       )}
 
-      {/* Recusado não pode ser silêncio: sem esta linha a pessoa fica à espera
-          de um dinheiro que já não vem. */}
+      {/* Pedidos recusados */}
       {refused.length > 0 && (
-        <div className="rounded-3xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-4">
-          <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+        <div className="surface-card rounded-card p-4">
+          <p className="text-caption font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
             Não avançou
           </p>
           {refused.slice(0, 3).map((r) => (
             <div key={r.id} className="mt-2">
-              <p className="flex items-baseline gap-2 text-sm">
-                <span className="min-w-0 flex-1 truncate font-bold text-zinc-700 dark:text-zinc-200">
+              <p className="flex items-baseline gap-2 text-body">
+                <span className="min-w-0 flex-1 truncate font-semibold text-ink dark:text-zinc-200">
                   {r.direction === 'in' ? 'Recarga' : 'Levantamento'} · {r.method}
                 </span>
-                <span className="shrink-0 font-bold text-zinc-900 dark:text-white">
+                <span className="shrink-0 font-semibold text-ink dark:text-white">
                   {formatKz(r.amount_kz)}
                 </span>
               </p>
-              <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+              <p className="text-caption text-zinc-500 dark:text-zinc-400 mt-0.5">
                 {r.reason?.trim() || 'Sem motivo indicado'} · {when(r.resolved_at ?? r.at)}
               </p>
             </div>
@@ -195,34 +273,82 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
         </div>
       )}
 
-      {/* Razão de movimentos */}
-      <div className="flex items-center gap-2 px-1">
-        <Receipt className="w-4 h-4 text-zinc-400" />
-        <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
-          Movimentos
-        </p>
+      {/* Cabeçalho e filtros dos movimentos */}
+      <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-2">
+          <ReceiptIcon className="w-4 h-4 text-purple-600 dark:text-amber-400" />
+          <p className="eyebrow text-zinc-500 dark:text-zinc-400">
+            Movimentos ({txs.length})
+          </p>
+        </div>
       </div>
 
-      {!loading && txs.length === 0 && (
+      {!loading && txs.length > 0 && (
+        <div className="space-y-2.5">
+          <div className="grid grid-cols-3 gap-1 rounded-full bg-zinc-100 p-1 dark:bg-white/[0.06]">
+            {DIR_FILTERS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setDirFilter(f.id)}
+                aria-pressed={dirFilter === f.id}
+                className={cn(
+                  'h-9 rounded-full text-label font-semibold transition-colors',
+                  dirFilter === f.id
+                    ? 'bg-white text-ink shadow-sm dark:bg-white/15 dark:text-white'
+                    : 'text-zinc-500 dark:text-zinc-400',
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filtrar por nota ou referência…"
+              aria-label="Filtrar movimentos da carteira"
+              className="surface-outline h-11 w-full rounded-control pl-10 pr-10 text-body outline-none focus:border-purple-400 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label="Limpar filtro"
+                className="tap-pad absolute right-2 top-1/2 -translate-y-1/2 grid h-8 w-8 place-items-center rounded-full text-zinc-400"
+              >
+                <CloseIcon className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!loading && visibleTxs.length === 0 && (
         <Empty
-          title="Sem movimentos"
-          text="As corridas que fechar e as recargas confirmadas aparecem aqui, com o saldo a seguir a cada movimento."
+          title={txs.length === 0 ? 'Sem movimentos' : 'Nada neste filtro'}
+          text={txs.length === 0
+            ? 'As corridas que fechar e as recargas confirmadas aparecem aqui, com o saldo a seguir a cada movimento.'
+            : 'Não há movimentos com este filtro. Toque em «Todos» para ver a lista completa.'}
         />
       )}
 
       <div className="space-y-2.5">
-        {txs.map((t) => (
-          <div key={t.id} className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-3.5 flex items-center justify-between gap-3">
+        {visibleTxs.map((t) => (
+          <div key={t.id} className="surface-card rounded-card p-3.5 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="font-bold text-sm text-zinc-900 dark:text-white">{TX_LABEL[t.kind]}</p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{t.note || t.trip_id || ''}</p>
-              <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{when(t.at)}</p>
+              <p className="font-semibold text-body text-ink dark:text-white">{TX_LABEL[t.kind]}</p>
+              <p className="text-caption text-zinc-500 dark:text-zinc-400 truncate">{t.note || t.trip_id || ''}</p>
+              <p className="text-caption text-zinc-500 dark:text-zinc-400">{when(t.at)}</p>
             </div>
             <div className="text-right shrink-0">
-              <p className={cn('font-semibold', t.amount_kz >= 0 ? 'text-purple-600 dark:text-purple-400' : 'text-red-600 dark:text-red-400')}>
+              <p className={cn('font-semibold text-body', t.amount_kz >= 0 ? 'text-purple-700 dark:text-amber-300' : 'text-red-600 dark:text-red-400')}>
                 {t.amount_kz >= 0 ? '+' : ''}{formatKz(t.amount_kz)}
               </p>
-              <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              <p className="text-caption text-zinc-500 dark:text-zinc-400">
                 ficou {formatKz(t.balance_after_kz)}
               </p>
             </div>
@@ -230,7 +356,7 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
         ))}
       </div>
 
-      {/* Sheet de pedido */}
+      {/* Sheet de pedido com valores rápidos e métodos frequentes */}
       <Sheet
         open={sheet !== null}
         title={sheet === 'in' ? 'Recarregar a carteira' : 'Pedir levantamento'}
@@ -241,7 +367,31 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
             ? 'Enviamos os dados para a equipa confirmar o pagamento. Só depois o saldo sobe.'
             : `Tem ${formatKz(balance ?? 0)} disponível. A equipa confirma e o dinheiro sai.`}
         </p>
-        <div className="mt-4 space-y-3">
+
+        {/* Valores rápidos em Kwanzas */}
+        <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Valores rápidos">
+          {QUICK_AMOUNTS.map((val) => {
+            const active = Number(amount) === val;
+            return (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setAmount(String(val))}
+                aria-pressed={active}
+                className={cn(
+                  'h-10 rounded-full border px-3.5 text-label font-semibold transition-colors',
+                  active
+                    ? 'border-purple-600 bg-purple-600 text-white dark:border-amber-400 dark:bg-amber-400 dark:text-ink'
+                    : 'surface-outline',
+                )}
+              >
+                {formatKz(val)}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 space-y-3">
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))}
@@ -249,6 +399,26 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
             inputMode="numeric"
             className={fieldCls}
           />
+
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Métodos habituais">
+            {quickMethods.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMethod(m)}
+                aria-pressed={method === m}
+                className={cn(
+                  'h-9 rounded-full border px-3 text-caption font-semibold transition-colors',
+                  method === m
+                    ? 'border-purple-600 bg-purple-600 text-white dark:border-amber-400 dark:bg-amber-400 dark:text-ink'
+                    : 'surface-outline',
+                )}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+
           <input
             value={method}
             onChange={(e) => setMethod(e.target.value)}
@@ -256,12 +426,17 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
             className={fieldCls}
           />
         </div>
+
         <button
+          type="button"
           onClick={submitRequest}
-          disabled={busy}
-          className={cn(btnCls, 'mt-4 flex items-center justify-center gap-2')}
+          disabled={busy || !amount || !method.trim()}
+          className={cn(
+            'w-full h-12 rounded-control font-semibold text-body mt-4 flex items-center justify-center gap-2',
+            busy || !amount || !method.trim() ? OFF : 'btn-main',
+          )}
         >
-          {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+          {busy ? <SpinnerIcon className="w-5 h-5 animate-spin" /> : null}
           Enviar pedido
         </button>
       </Sheet>
@@ -269,18 +444,23 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
   );
 }
 
-function Empty({ title, text, action }: { title: string; text: string; action?: React.ReactNode }) {
+function Empty({ icon, title, text, action }: { icon?: React.ReactNode; title: string; text: string; action?: React.ReactNode }) {
   return (
-    <div className="animate-enter rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-8 text-center shadow-sm">
-      <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">{title}</h2>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">{text}</p>
+    <div className="animate-enter surface-card rounded-card p-8 text-center">
+      {icon && (
+        <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-card bg-purple-100 text-purple-700 dark:bg-amber-400/15 dark:text-amber-300">
+          {icon}
+        </div>
+      )}
+      <h2 className="text-lead font-semibold tracking-tight text-ink dark:text-white">{title}</h2>
+      <p className="text-label text-zinc-500 dark:text-zinc-400 mt-2">{text}</p>
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
 const btnCls =
-  'btn-main w-full h-12 rounded-2xl font-bold';
+  'btn-main w-full h-12 rounded-control font-semibold text-body';
 
 const fieldCls =
-  'w-full h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-4 outline-none focus:border-purple-400 placeholder:text-zinc-500 dark:placeholder:text-zinc-400';
+  'w-full h-12 rounded-control surface-outline px-4 outline-none focus:border-purple-400 placeholder:text-zinc-500 dark:placeholder:text-zinc-400';

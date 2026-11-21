@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  CarFront, KeyRound, Loader2, MessageSquare, Moon, Share2, Star, Users, XCircle,
-} from 'lucide-react';
+  ArrowRightIcon, CarFrontIcon, DemoFlaskIcon, KeyIcon, MessageIcon, MoonIcon,
+  ShareIcon, SpinnerIcon, StarIcon, UsersIcon, XCircleIcon,
+} from './ElaraIcons';
 import { supabase } from '../lib/supabase';
+import { useDemo } from '../lib/demoContext';
+import { advanceDemoTrip, cancelDemoTrip } from '../lib/demoEngine';
 import type { SessionUser, Trip, TripState, Zone } from '../types';
 import type { LatLon } from '../lib/geo';
 import { distanceText } from '../lib/geo';
@@ -21,6 +24,7 @@ import {
 } from '../lib/trips';
 import { cn, waLink, when } from '../lib/utils';
 import { formatKz } from '../lib/money';
+import { loadTrustedContacts, trustedShareMessage } from '../lib/localExtras';
 
 /** O que uma corrida partilhada diz a quem comprou um lugar: números, nada de pessoas. */
 type RideSeatSummary = { depart_at: number; seats_taken: number; capacity: number };
@@ -49,6 +53,8 @@ export function TripConsole({
   trip: initial, user, zones, freshPins, driverPos,
   onTripEnded, onTripChanged, onError, onSos,
 }: TripConsoleProps) {
+  const demoCtx = useDemo();
+  const isDemo = !!demoCtx?.isDemo;
   const [trip, setTrip] = useState<Trip>(initial);
   const [pins, setPins] = useState<{ pin: string; dropPin?: string | null } | null>(freshPins ?? null);
   const [busy, setBusy] = useState(false);
@@ -58,6 +64,7 @@ export function TripConsole({
   // telemóvel o diálogo nativo tapa o ecrã e não pertence ao desenho da app.
   const [askCancel, setAskCancel] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [trustedContacts] = useState(() => loadTrustedContacts());
   const prefs = usePrefs();
 
   const from = zones.find((z) => z.id === trip.from_zone_id)?.name ?? trip.from_zone_id;
@@ -95,6 +102,11 @@ export function TripConsole({
 
   // Buscar os PINs guardados em tr_trip_secret: só o passageiro os lê.
   useEffect(() => {
+    if (isDemo && demoCtx) {
+      const demoPin = demoCtx.demoState.pins[trip.id];
+      if (demoPin) setPins(demoPin);
+      return;
+    }
     if (pins || !isTripMine(trip, user.uid)) return;
     let alive = true;
     supabase
@@ -106,14 +118,33 @@ export function TripConsole({
         if (alive && data) setPins({ pin: data.pin, dropPin: data.drop_pin });
       });
     return () => { alive = false; };
-  }, [trip.id, pins, user.uid, trip]);
+  }, [trip.id, pins, user.uid, trip, isDemo, demoCtx]);
 
-  // O cartão do motorista diz o que o servidor sabe dele: nota e viagens. Não
-  // há telefone — o encontro combina-se no chat, e é isso que fica registado.
+  // No modo demonstração, a viagem avança de forma natural no mapa (e o utilizador também pode avançar com 1 toque).
+  useEffect(() => {
+    if (!isDemo || !demoCtx) return;
+    const autoMs: Partial<Record<TripState, number>> = {
+      searching: 3200,
+      accepted: 4500,
+      arriving: 4500,
+    };
+    const ms = autoMs[trip.state];
+    if (!ms) return;
+    const timer = window.setTimeout(() => {
+      demoCtx.setDemoState((prev) => advanceDemoTrip(prev, trip.id));
+    }, ms);
+    return () => window.clearTimeout(timer);
+  }, [isDemo, demoCtx, trip.id, trip.state]);
+
+  // O cartão do motorista diz o que o servidor sabe dele: nota e viagens.
   const [driverMeta, setDriverMeta] = useState<{ rating: number; trips: number } | null>(null);
   useEffect(() => {
     const driverId = trip.driver_id;
     if (!driverId) { setDriverMeta(null); return; }
+    if (isDemo) {
+      setDriverMeta({ rating: 4.9, trips: 1284 });
+      return;
+    }
     let alive = true;
     supabase
       .from('tr_driver')
@@ -126,7 +157,7 @@ export function TripConsole({
         }
       });
     return () => { alive = false; };
-  }, [trip.driver_id]);
+  }, [trip.driver_id, isDemo]);
 
   const focusChat = () => {
     document.getElementById('trip-chat')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -136,6 +167,7 @@ export function TripConsole({
   // pedido faz-se no chat, como sempre se fez — a app não mostra uma porta
   // que não abre.
   useEffect(() => {
+    if (isDemo) { setVibesOn(true); return; }
     let alive = true;
     tripPrefsLive().then(async (on) => {
       if (!alive || !on) return;
@@ -144,10 +176,11 @@ export function TripConsole({
       if (alive) setVibe(v);
     });
     return () => { alive = false; };
-  }, [trip.id]);
+  }, [trip.id, isDemo]);
 
   const chooseVibe = async (v: Vibe) => {
     if (busy || vibe === v) return;
+    if (isDemo) { setVibe(v); return; }
     setBusy(true);
     const msg = await setTripVibe(trip.id, v);
     setBusy(false);
@@ -157,6 +190,7 @@ export function TripConsole({
 
   // Tempo real: cada mudança de estado chega sozinha ao passageiro.
   useEffect(() => {
+    if (isDemo) return;
     const channel = supabase
       .channel(`tr-trip-${trip.id}`)
       .on(
@@ -169,7 +203,7 @@ export function TripConsole({
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [trip.id, onTripChanged]);
+  }, [trip.id, onTripChanged, isDemo]);
 
   // Numa carrinha partilhada (0004) as duas perguntas da paragem são «com
   // quantos vou?» e «a que hora sai?». Respondem-se com números da corrida do
@@ -204,6 +238,12 @@ export function TripConsole({
 
   const cancel = async () => {
     if (busy) return;
+    if (isDemo && demoCtx) {
+      demoCtx.setDemoState((prev) => cancelDemoTrip(prev, trip.id));
+      setAskCancel(false);
+      onTripEnded();
+      return;
+    }
     setBusy(true);
     const { data, error } = await supabase.rpc('tr_cancel_trip', { p_trip_id: trip.id });
     setBusy(false);
@@ -222,6 +262,36 @@ export function TripConsole({
 
   return (
     <div className="animate-enter space-y-4">
+      {/* Controlo rápido dentro da própria viagem quando o modo demonstração está activo */}
+      {isDemo && demoCtx && active && (
+        <div className="rounded-card border border-purple-300 bg-purple-50 p-3.5 dark:border-amber-400/40 dark:bg-amber-400/[0.08] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <DemoFlaskIcon className="h-4 w-4 shrink-0 text-purple-700 dark:text-amber-300" />
+            <p className="text-caption font-semibold text-purple-800 dark:text-amber-200 truncate">
+              {trip.state === 'waiting_pin'
+                ? 'Motorista no ponto — confirme o PIN para arrancar'
+                : trip.state === 'ongoing'
+                  ? 'Em viagem — termine quando quiser ver o recibo'
+                  : 'Modo demonstração — a viagem avança sozinha ou num toque'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => demoCtx.setDemoState((prev) => advanceDemoTrip(prev, trip.id))}
+            className="btn-main shrink-0 h-9 px-3 rounded-control text-caption font-semibold inline-flex items-center gap-1"
+          >
+            {trip.state === 'waiting_pin'
+              ? 'Confirmar PIN'
+              : trip.state === 'ongoing'
+                ? 'Chegar ao destino'
+                : trip.state === 'waiting_drop'
+                  ? 'Concluir entrega'
+                  : 'Avançar'}
+            <ArrowRightIcon className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Primeiro o que pode ser um problema, depois o resto da viagem. */}
       {isTripMine(trip, user.uid) && <RideCheck trip={trip} uid={user.uid} onHelp={onSos} />}
 
@@ -239,31 +309,31 @@ export function TripConsole({
       )}
 
       {/* Rota e preço, em duas linhas — o estado vai na pílula sobre o mapa */}
-      <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-4">
+      <div className="surface-card rounded-card p-4">
         <div className="flex items-start gap-3">
           <div className="mt-1.5 flex flex-col items-center gap-1 shrink-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-purple-600 dark:bg-purple-400" />
+            <span className="w-2.5 h-2.5 rounded-full bg-purple-600 dark:bg-amber-400" />
             <span className="w-0.5 h-5 bg-zinc-300 dark:bg-zinc-600" />
-            <span className="w-2.5 h-2.5 rounded-sm bg-zinc-800 dark:bg-zinc-200" />
+            <span className="w-2.5 h-2.5 rounded-sm bg-ink dark:bg-zinc-200" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-zinc-900 dark:text-white truncate leading-tight">{from}</p>
-            <p className="font-bold text-zinc-900 dark:text-white truncate leading-tight mt-2.5">{to}</p>
+            <p className="font-semibold text-ink dark:text-white truncate leading-tight">{from}</p>
+            <p className="font-semibold text-ink dark:text-white truncate leading-tight mt-2.5">{to}</p>
           </div>
           <div className="text-right shrink-0">
-            <p className="font-bold tracking-tight text-lg text-purple-600 dark:text-purple-400 leading-tight">{formatKz(trip.price_kz)}</p>
-            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{trip.distance_km} km</p>
+            <p className="font-display font-semibold tracking-tight text-lg text-purple-700 dark:text-amber-400 leading-tight">{formatKz(trip.price_kz)}</p>
+            <p className="text-caption text-zinc-500 dark:text-zinc-400">{trip.distance_km} km</p>
           </div>
         </div>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-3">{nextHint(trip.state, trip.kind, !!trip.ride_id)}</p>
-        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-1">
+        <p className="text-label text-zinc-600 dark:text-zinc-300 mt-3">{nextHint(trip.state, trip.kind, !!trip.ride_id)}</p>
+        <p className="text-caption text-zinc-500 dark:text-zinc-400 mt-1">
           Viagem {trip.code} · {trip.payment === 'cash' ? 'Dinheiro' : 'Multicaixa'}
           {trip.seats > 1 ? ` · ${trip.seats} lugares` : ''}
         </p>
       </div>
 
       {/* Onde é que isto vai: quatro paragens, uma acesa. */}
-      <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-4">
+      <div className="surface-card rounded-card p-4">
         <TripTimeline trip={trip} />
       </div>
 
@@ -276,7 +346,7 @@ export function TripConsole({
           {!pastPickup && (
             <>
               <div className="flex items-center gap-2 text-purple-100 text-xs font-bold">
-                <KeyRound className="w-4 h-4" /> Código de viagem
+                <KeyIcon className="w-4 h-4" /> Código de viagem
               </div>
               <p className="text-4xl font-semibold tracking-[0.3em] mt-1">{pins.pin}</p>
               <p className="text-sm text-purple-100 mt-2">
@@ -302,19 +372,19 @@ export function TripConsole({
 
       {/* Motorista */}
       {trip.driver_name && (
-        <div className="rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-5 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-              <CarFront className="w-6 h-6" />
+        <div className="surface-card rounded-card p-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-control bg-purple-100 dark:bg-amber-400/15 text-purple-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+              <CarFrontIcon className="w-6 h-6" />
             </div>
             <div className="min-w-0">
-              <p className="font-bold text-zinc-900 dark:text-white truncate">{trip.driver_name}</p>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">
-                {trip.car_model} · <span className="font-bold text-zinc-700 dark:text-zinc-200">{trip.plate}</span>
+              <p className="font-semibold text-ink dark:text-white truncate">{trip.driver_name}</p>
+              <p className="text-label text-zinc-500 dark:text-zinc-400 truncate">
+                {trip.car_model} · <span className="font-semibold text-zinc-700 dark:text-zinc-200">{trip.plate}</span>
               </p>
               {driverMeta && (
                 <p className="flex items-center gap-1 text-[12px] font-semibold text-zinc-600 dark:text-zinc-300 mt-0.5">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                  <StarIcon filled className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                   {driverMeta.rating.toFixed(1).replace('.', ',')} · {driverMeta.trips.toLocaleString('pt-AO')} viagens
                 </p>
               )}
@@ -330,7 +400,7 @@ export function TripConsole({
               )}
               {ride && active && (
                 <p className="flex items-center gap-1.5 text-[12px] font-bold text-purple-700 dark:text-purple-300 mt-1">
-                  <Users className="w-3.5 h-3.5 shrink-0" />
+                  <UsersIcon className="w-3.5 h-3.5 shrink-0" />
                   Lugar partilhado: {ride.seats_taken} de {ride.capacity} vendidos · {departText(ride.depart_at)}
                 </p>
               )}
@@ -345,7 +415,7 @@ export function TripConsole({
                 onClick={focusChat}
                 className="h-10 px-3.5 rounded-xl shrink-0 flex items-center gap-1.5 text-[12px] font-bold bg-purple-600 text-white dark:bg-amber-400 dark:text-ink active:scale-[0.98] transition-transform"
               >
-                <MessageSquare className="w-4 h-4" /> Mensagem
+                <MessageIcon className="w-4 h-4" /> Mensagem
               </button>
             )}
           </div>
@@ -384,8 +454,8 @@ export function TripConsole({
 
       {/* O ambiente dentro do carro, quando o servidor o guarda. */}
       {vibesOn && active && trip.driver_name && (
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4">
-          <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+        <div className="surface-card rounded-card p-4">
+          <p className="text-caption font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
             Dentro do carro
           </p>
           <div className="h-rail mt-2 flex gap-2 overflow-x-auto">
@@ -423,7 +493,7 @@ export function TripConsole({
       {active && prefs.night && isNight() && (
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-4">
           <p className="flex items-center gap-2 text-[13px] font-semibold text-zinc-900 dark:text-white">
-            <Moon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            <MoonIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
             É de noite ({NIGHT_WINDOW})
           </p>
           <ul className="mt-2 space-y-1.5 text-[12px] text-zinc-600 dark:text-zinc-300">
@@ -443,16 +513,46 @@ export function TripConsole({
       {/* Dois gestos que a pessoa procura numa viagem: avisar alguém e falar com a
           equipa. O link de partilha não leva código nenhum. */}
       {active && (
-        <div className="grid grid-cols-2 gap-2">
-          <a
-            href={waLink('', shareMessage(trip, from, to))}
-            target="_blank"
-            rel="noreferrer"
-            className="h-12 rounded-2xl font-bold text-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-200 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-          >
-            <Share2 className="w-4 h-4" /> Partilhar viagem
-          </a>
-          <ReportButton onOpen={() => setReportOpen(true)} />
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href={waLink('', shareMessage(trip, from, to))}
+              target="_blank"
+              rel="noreferrer"
+              className="h-12 rounded-control font-semibold text-label surface-outline flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            >
+              <ShareIcon className="w-4 h-4" /> Partilhar viagem
+            </a>
+            <ReportButton onOpen={() => setReportOpen(true)} />
+          </div>
+          {trustedContacts.length > 0 && (
+            <div className="surface-card rounded-card p-3">
+              <p className="text-caption font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+                Avisar contacto de confiança (sem PIN)
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {trustedContacts.map((tc) => (
+                  <a
+                    key={tc.id}
+                    href={waLink(
+                      tc.phone,
+                      trustedShareMessage({
+                        contactName: tc.name,
+                        trip,
+                        fromName: from,
+                        toName: to,
+                      }),
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="h-9 rounded-full border border-purple-200 bg-purple-50 px-3 text-caption font-semibold text-purple-700 inline-flex items-center gap-1.5 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-200"
+                  >
+                    <ShareIcon className="h-3 w-3" /> {tc.name}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -478,7 +578,7 @@ export function TripConsole({
                 disabled={busy}
                 className="h-12 rounded-2xl font-bold text-sm text-white bg-red-600 active:bg-red-700 flex items-center justify-center gap-2"
               >
-                {busy && <Loader2 className="w-4 h-4 animate-spin" />} Sim, cancelar
+                {busy && <SpinnerIcon className="w-4 h-4 animate-spin" />} Sim, cancelar
               </button>
             </div>
           </div>
@@ -487,7 +587,7 @@ export function TripConsole({
             onClick={() => setAskCancel(true)}
             className="w-full h-12 rounded-2xl font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
           >
-            <XCircle className="w-5 h-5" /> Cancelar viagem
+            <XCircleIcon className="w-5 h-5" /> Cancelar viagem
           </button>
         )
       )}

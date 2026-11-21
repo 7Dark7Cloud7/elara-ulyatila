@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDownIcon, ChevronUpIcon } from './ElaraIcons';
 import { MapView, type MapViewProps } from './MapView';
 import { cn } from '../lib/utils';
 interface MapScreenProps {
@@ -102,7 +102,7 @@ export function MapScreen({
         {actions && (
           <div
             className="absolute right-3 z-10 flex flex-col gap-2 transition-[bottom] duration-300"
-            style={{ bottom: wide ? 12 : panelH + 12 }}
+            style={{ bottom: wide ? 44 : panelH + 12 }}
           >
             {actions}
           </div>
@@ -136,8 +136,8 @@ export function MapScreen({
           >
             <span className="sheet-grabber" />
             {open
-              ? <ChevronDown className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-              : <ChevronUp className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />}
+              ? <ChevronDownIcon className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+              : <ChevronUpIcon className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />}
           </button>
         )}
         {/* min-h-0: num flex-column filho, a altura mínima é o conteúdo. Sem isto

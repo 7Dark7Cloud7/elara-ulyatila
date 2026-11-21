@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
-import { CarFront, KeyRound, Loader2, MapPin, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  CarFrontIcon, CloseIcon, DemoFlaskIcon, KeyIcon, PinIcon, SearchIcon, SpinnerIcon, StarIcon,
+} from './ElaraIcons';
 import { supabase, rpcError } from '../lib/supabase';
+import { useDemo } from '../lib/demoContext';
 import type { Driver, Rental, RentalRequest, SessionUser, VehicleClass, Zone } from '../types';
 import { Sheet } from './Sheet';
 import { VehicleArt, vehicleKindFor } from './VehicleArt';
 import { RentalBooking } from './RentalBooking';
 import { RentalDesk } from './RentalDesk';
 import { REQUEST_STATE, fetchMyRequests, fetchOwnerRequests, fetchRentals, planText } from '../lib/rentals';
+import { filterRentals, type RentalFilterMode } from '../lib/localExtras';
 import { formatKz } from '../lib/money';
 import { ratingBadge } from '../lib/reputation';
 import { cn, when } from '../lib/utils';
@@ -19,6 +23,7 @@ interface RentalsSheetProps {
   classes: VehicleClass[];
   driver: Driver | null;
   onLogin: () => void;
+  onOpenDemo?: () => void;
   onError: (message: string) => void;
 }
 
@@ -30,8 +35,10 @@ type Panel = 'browse' | 'mine' | 'desk';
  * de baixo (cinco botões não cabem em 360 px); abre-se a partir do pedido.
  */
 export function RentalsSheet({
-  open, onClose, user, zones, classes, driver, onLogin, onError,
+  open, onClose, user, zones, classes, driver, onLogin, onOpenDemo, onError,
 }: RentalsSheetProps) {
+  const demoCtx = useDemo();
+  const isDemo = !!demoCtx?.isDemo;
   const [panel, setPanel] = useState<Panel>('browse');
   const [rows, setRows] = useState<Rental[]>([]);
   const [mine, setMine] = useState<RentalRequest[]>([]);
@@ -39,10 +46,20 @@ export function RentalsSheet({
   const [missing, setMissing] = useState(false);
   const [picked, setPicked] = useState<Rental | null>(null);
   const [pendingDesk, setPendingDesk] = useState(0);
+  const [modeFilter, setModeFilter] = useState<RentalFilterMode>('all');
+  const [query, setQuery] = useState('');
 
   const atWork = driver?.status === 'approved' ? driver : null;
 
   const load = useCallback(async () => {
+    if (isDemo && demoCtx) {
+      setRows(demoCtx.demoState.rentals);
+      setMine(demoCtx.demoState.rentalRequests);
+      setMissing(false);
+      setPendingDesk(0);
+      setLoading(false);
+      return;
+    }
     if (!user) { setLoading(false); return; }
     setLoading(true);
     const [list, asks, owner] = await Promise.all([
@@ -55,11 +72,18 @@ export function RentalsSheet({
     setMine(asks.rows);
     setPendingDesk(owner.rows.filter((q) => q.state === 'sent').length);
     setLoading(false);
-  }, [user, atWork]);
+  }, [user, atWork, isDemo, demoCtx]);
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
   const cancel = async (req: RentalRequest) => {
+    if (isDemo && demoCtx) {
+      demoCtx.setDemoState((prev) => ({
+        ...prev,
+        rentalRequests: prev.rentalRequests.map((q) => (q.id === req.id ? { ...q, state: 'cancelled' } : q)),
+      }));
+      return;
+    }
     const { error } = await supabase.rpc('tr_cancel_rental_request', { p_request_id: req.id });
     if (error) { onError(rpcError(error)); return; }
     load();
@@ -67,18 +91,43 @@ export function RentalsSheet({
 
   const pendingMine = mine.filter((r) => r.state === 'sent').length;
 
+  const filteredRows = useMemo(
+    () => filterRentals(rows, { mode: modeFilter, query, zoneName: (id) => zoneName(zones, id) }),
+    [rows, modeFilter, query, zones],
+  );
+
   return (
     <Sheet open={open} title="Alugar um carro" onClose={() => { setPicked(null); onClose(); }} tall>
       {!user ? (
-        <div className="py-6 text-center">
-          <CarFront className="w-9 h-9 text-purple-600 dark:text-purple-400 mx-auto" />
-          <p className="font-bold text-zinc-900 dark:text-white mt-2">Aluguer por hora ou dia</p>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 px-4">
-            Entre na conta Elara para ver os carros disponíveis e enviar o pedido ao dono.
-          </p>
-          <button onClick={onLogin} className="btn-main mt-4 w-full h-12 rounded-2xl font-bold">
-            Entrar
-          </button>
+        <div className="py-4 space-y-4 text-center">
+          <div className="surface-card rounded-card overflow-hidden">
+            <div className="flex items-end justify-center h-[126px] bg-gradient-to-b from-purple-100/80 to-white dark:from-purple-950/60 dark:to-vault px-4">
+              <VehicleArt kind="suv" label="Aluguer de carro Elara" className="w-[220px] h-auto translate-y-[6px]" />
+            </div>
+            <div className="p-4">
+              <p className="font-display text-lg font-medium text-ink dark:text-white">
+                Aluguer por hora, dia ou semana
+              </p>
+              <p className="text-label text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
+                Com motorista ou para conduzir. Entre na sua conta Elara para ver os carros disponíveis e combinar directamente com o dono.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            <button onClick={onLogin} className="btn-main w-full h-12 rounded-control font-semibold">
+              Entrar na conta Elara
+            </button>
+            {onOpenDemo && (
+              <button
+                type="button"
+                onClick={() => { onClose(); onOpenDemo(); }}
+                className="surface-outline w-full h-11 rounded-control text-label font-semibold text-purple-700 dark:text-amber-300 flex items-center justify-center gap-2"
+              >
+                <DemoFlaskIcon className="w-4 h-4 shrink-0" />
+                Ligar modo demonstração nesta app
+              </button>
+            )}
+          </div>
         </div>
       ) : picked ? (
         <RentalBooking
@@ -92,15 +141,15 @@ export function RentalsSheet({
       ) : (
         <div className="pb-2">
           {missing ? (
-            <div className="rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
+            <div className="rounded-card border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
               <p className="font-bold text-amber-800 dark:text-amber-200">O aluguer ainda não está ligado</p>
-              <p className="text-[13px] font-bold text-amber-800/90 dark:text-amber-200/90 mt-1">
+              <p className="text-[13px] font-medium text-amber-800/90 dark:text-amber-200/90 mt-1">
                 A migração 0003 (frota, Hiace, Canter e aluguer) tem de ser aplicada no Supabase antes desta montra existir.
               </p>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-2 rounded-2xl bg-zinc-100 dark:bg-zinc-800 p-1.5">
+              <div className={cn('grid gap-1.5 rounded-control bg-zinc-100 dark:bg-white/[0.06] p-1', atWork ? 'grid-cols-3' : 'grid-cols-2')}>
                 {([['browse', 'Carros'], ...(atWork ? [['desk', 'Meu carro'] as const] : []), ['mine', 'Meus pedidos']] as const).map((t) => {
                   const [id, label] = t as [Panel, string];
                   return (
@@ -109,19 +158,20 @@ export function RentalsSheet({
                       onClick={() => setPanel(id)}
                       aria-pressed={panel === id}
                       className={cn(
-                        'h-10 rounded-xl font-bold text-sm transition-colors',
-                        panel === id ? 'bg-purple-600 text-white shadow-card'
-                          : 'text-zinc-500 dark:text-zinc-400',
+                        'h-10 rounded-[12px] font-semibold text-label transition-colors flex items-center justify-center',
+                        panel === id
+                          ? 'bg-purple-600 text-white shadow-card dark:bg-amber-400 dark:text-ink'
+                          : 'text-zinc-600 dark:text-zinc-300',
                       )}
                     >
                       {label}
                       {id === 'mine' && pendingMine > 0 && (
-                        <span className="ml-1.5 inline-flex min-w-5 h-5 px-1 rounded-full bg-amber-400 text-amber-950 text-[12px] items-center justify-center">
+                        <span className="ml-1.5 inline-flex min-w-5 h-5 px-1 rounded-full bg-amber-400 text-ink text-[11px] font-bold items-center justify-center">
                           {pendingMine}
                         </span>
                       )}
                       {id === 'desk' && pendingDesk > 0 && (
-                        <span className="ml-1.5 inline-flex min-w-5 h-5 px-1 rounded-full bg-purple-600 text-white text-[12px] items-center justify-center">
+                        <span className="ml-1.5 inline-flex min-w-5 h-5 px-1 rounded-full bg-purple-600 text-white text-[11px] font-bold items-center justify-center">
                           {pendingDesk}
                         </span>
                       )}
@@ -132,7 +182,7 @@ export function RentalsSheet({
 
               {loading && (
                 <p className="text-center text-zinc-500 dark:text-zinc-400 py-10 text-sm flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> a procurar carros…
+                  <SpinnerIcon className="w-4 h-4 animate-spin" /> a procurar carros…
                 </p>
               )}
 
@@ -145,38 +195,98 @@ export function RentalsSheet({
                       : 'Assim que um motorista aprovado publicar um carro, ele aparece nesta lista.'}
                   />
                 ) : (
-                  <div className="space-y-2.5 mt-3">
-                    {rows.map((r) => (
-                      <button
-                        key={r.id}
-                        onClick={() => setPicked(r)}
-                        className="w-full text-left rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 flex gap-3 transition-transform active:scale-[0.99]"
-                      >
-                        <span className="flex items-end justify-center w-[96px] h-[68px] shrink-0 rounded-xl bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                          <VehicleArt kind={vehicleKindFor(r.class_id)} className="w-[92px] h-auto translate-y-[6px]" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block font-bold text-[14px] text-zinc-900 dark:text-white truncate">{r.title}</span>
-                          <span className="block text-[12px] font-medium text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-                            {r.tr_driver?.public_name ?? 'Motorista'} · {r.zone_id ? zoneName(zones, r.zone_id) : 'zona a combinar'}
-                          </span>
-                          <span className="flex flex-wrap gap-1 mt-1.5">
-                            {r.with_driver && <Badge>com motorista</Badge>}
-                            {r.allows_self_drive && <Badge>para conduzir</Badge>}
-                            {r.min_hours > 1 && <Badge>mín. {r.min_hours}h</Badge>}
-                          </span>
-                        </span>
-                        <span className="text-right shrink-0">
-                          <span className="block font-bold text-purple-600 dark:text-purple-400">{formatKz(r.price_day_kz)}</span>
-                          <span className="block text-[12px] font-medium text-zinc-500 dark:text-zinc-400">/ dia</span>
-                          {r.tr_driver && (
-                            <span className="flex items-center justify-end gap-0.5 text-[12px] font-medium text-zinc-500 dark:text-zinc-400 mt-1">
-                              <Star className="w-3 h-3 fill-current text-amber-500" /> {ratingBadge(r.tr_driver)}
+                  <div className="space-y-3 mt-3">
+                    {/* Filtros rápidos e pesquisa */}
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                        <input
+                          type="search"
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                          placeholder="Procurar modelo, zona ou dono…"
+                          aria-label="Procurar carros para alugar"
+                          className="w-full h-11 rounded-control bg-white dark:bg-white/[0.06] border border-zinc-200 dark:border-white/15 pl-10 pr-10 text-label text-ink dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:border-purple-500 dark:focus:border-amber-400 [&::-webkit-search-cancel-button]:appearance-none"
+                        />
+                        {query && (
+                          <button
+                            type="button"
+                            onClick={() => setQuery('')}
+                            aria-label="Limpar pesquisa"
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400"
+                          >
+                            <CloseIcon className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {([['all', 'Todos'], ['driver', 'Com motorista'], ['self', 'Para conduzir']] as const).map(([m, label]) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setModeFilter(m)}
+                            aria-pressed={modeFilter === m}
+                            className={cn(
+                              'h-9 rounded-control border text-caption font-semibold transition-colors',
+                              modeFilter === m
+                                ? 'border-purple-500 bg-purple-50 text-purple-700 dark:border-amber-400 dark:bg-amber-400/[0.14] dark:text-amber-200'
+                                : 'border-zinc-200 dark:border-white/15 bg-white dark:bg-white/[0.04] text-zinc-600 dark:text-zinc-300',
+                            )}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {filteredRows.length === 0 ? (
+                      <div className="surface-card rounded-card p-5 text-center space-y-2">
+                        <p className="text-body font-semibold text-ink dark:text-white">
+                          Nenhum carro corresponde ao filtro
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => { setModeFilter('all'); setQuery(''); }}
+                          className="text-label font-semibold text-purple-600 dark:text-amber-400"
+                        >
+                          Mostrar todos ({rows.length})
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {filteredRows.map((r) => (
+                          <button
+                            key={r.id}
+                            onClick={() => setPicked(r)}
+                            className="surface-card w-full text-left rounded-card p-3 flex gap-3 transition-transform active:scale-[0.99]"
+                          >
+                            <span className="flex items-end justify-center w-[96px] h-[68px] shrink-0 rounded-control bg-purple-50/70 dark:bg-white/[0.05] overflow-hidden">
+                              <VehicleArt kind={vehicleKindFor(r.class_id)} className="w-[92px] h-auto translate-y-[6px]" />
                             </span>
-                          )}
-                        </span>
-                      </button>
-                    ))}
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-semibold text-body text-ink dark:text-white truncate">{r.title}</span>
+                              <span className="block text-caption font-medium text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+                                {r.tr_driver?.public_name ?? 'Motorista'} · {r.zone_id ? zoneName(zones, r.zone_id) : 'zona a combinar'}
+                              </span>
+                              <span className="flex flex-wrap gap-1 mt-1.5">
+                                {r.with_driver && <Badge>com motorista</Badge>}
+                                {r.allows_self_drive && <Badge>para conduzir</Badge>}
+                                {r.min_hours > 1 && <Badge>mín. {r.min_hours}h</Badge>}
+                              </span>
+                            </span>
+                            <span className="text-right shrink-0">
+                              <span className="block font-bold text-purple-700 dark:text-amber-300 tabular-nums">{formatKz(r.price_day_kz)}</span>
+                              <span className="block text-caption font-medium text-zinc-500 dark:text-zinc-400">/ dia</span>
+                              {r.tr_driver && (
+                                <span className="flex items-center justify-end gap-0.5 text-caption font-medium text-zinc-500 dark:text-zinc-400 mt-1">
+                                  <StarIcon filled className="w-3 h-3 text-amber-500" /> {ratingBadge(r.tr_driver)}
+                                </span>
+                              )}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               )}
@@ -187,33 +297,33 @@ export function RentalsSheet({
                 ) : (
                   <div className="space-y-2.5 mt-3">
                     {mine.map((q) => (
-                      <div key={q.id} className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3">
+                      <div key={q.id} className="surface-card rounded-card p-3.5">
                         <p className="flex items-start justify-between gap-2">
-                          <span className="font-bold text-[14px] text-zinc-900 dark:text-white truncate">
+                          <span className="font-semibold text-body text-ink dark:text-white truncate">
                             {q.rental?.title ?? 'Carro'}
                           </span>
-                          <span className={cn('text-[12px] font-semibold shrink-0',
-                            q.state === 'accepted' ? 'text-purple-600 dark:text-purple-400'
-                              : q.state === 'sent' ? 'text-amber-600 dark:text-amber-400'
+                          <span className={cn('text-caption font-semibold shrink-0',
+                            q.state === 'accepted' ? 'text-purple-700 dark:text-amber-300'
+                              : q.state === 'sent' ? 'text-amber-700 dark:text-amber-400'
                               : 'text-zinc-500 dark:text-zinc-400')}>
                             {REQUEST_STATE[q.state]}
                           </span>
                         </p>
-                        <p className="text-[12px] font-bold text-zinc-500 dark:text-zinc-400 mt-0.5">
+                        <p className="text-caption font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">
                           {planText(q.plan, q.qty)} · {q.with_driver ? 'com motorista' : 'para conduzir'} · {when(q.start_at)}
                         </p>
                         <p className="flex items-center justify-between mt-2">
-                          <span className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5" /> {q.pickup_zone_id ? zoneName(zones, q.pickup_zone_id) : 'a combinar'}
+                          <span className="text-caption font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                            <PinIcon className="w-3.5 h-3.5" /> {q.pickup_zone_id ? zoneName(zones, q.pickup_zone_id) : 'a combinar'}
                           </span>
-                          <span className="font-semibold text-purple-600 dark:text-purple-400">{formatKz(q.price_kz)}</span>
+                          <span className="font-semibold text-purple-700 dark:text-amber-300 tabular-nums">{formatKz(q.price_kz)}</span>
                         </p>
                         {q.state === 'sent' && (
                           <button
                             onClick={() => cancel(q)}
-                            className="mt-2 w-full h-10 rounded-xl font-semibold text-[13px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-center justify-center gap-1.5"
+                            className="mt-2.5 w-full h-10 rounded-control font-semibold text-label text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-center justify-center gap-1.5"
                           >
-                            <X className="w-4 h-4" /> Desistir do pedido
+                            <CloseIcon className="w-4 h-4" /> Desistir do pedido
                           </button>
                         )}
                       </div>
@@ -229,8 +339,8 @@ export function RentalsSheet({
               )}
 
               {!loading && panel === 'browse' && rows.length > 0 && (
-                <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400 text-center mt-4 flex items-center justify-center gap-1.5">
-                  <KeyRound className="w-3.5 h-3.5" />
+                <p className="text-caption font-medium text-zinc-500 dark:text-zinc-400 text-center mt-4 flex items-center justify-center gap-1.5">
+                  <KeyIcon className="w-3.5 h-3.5 shrink-0" />
                   O preço é do dono do carro. O pagamento combina-se com ele — a app não cobra nem guarda.
                 </p>
               )}
@@ -246,15 +356,15 @@ const zoneName = (zones: Zone[], id?: string | null) =>
   zones.find((z) => z.id === id)?.name ?? 'zona a combinar';
 
 const Badge = ({ children }: { children: React.ReactNode }) => (
-  <span className="rounded-full bg-purple-100 dark:bg-purple-900/40 px-2 py-0.5 text-[12px] font-semibold text-purple-700 dark:text-purple-300">
+  <span className="rounded-md bg-purple-100/90 dark:bg-amber-400/[0.14] px-2 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-amber-200">
     {children}
   </span>
 );
 
 const Empty = ({ title, text }: { title: string; text: string }) => (
-  <div className="rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700 p-6 text-center mt-3">
-    <CarFront className="w-7 h-7 text-zinc-300 dark:text-zinc-600 mx-auto" />
-    <p className="font-bold text-zinc-900 dark:text-white mt-2">{title}</p>
-    <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">{text}</p>
+  <div className="rounded-card border border-dashed border-zinc-300 dark:border-white/20 p-6 text-center mt-3">
+    <CarFrontIcon className="w-7 h-7 text-zinc-400 dark:text-zinc-500 mx-auto" />
+    <p className="font-semibold text-ink dark:text-white mt-2">{title}</p>
+    <p className="text-label text-zinc-500 dark:text-zinc-400 mt-1">{text}</p>
   </div>
 );

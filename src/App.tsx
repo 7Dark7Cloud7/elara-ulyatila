@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
-import { FlaskConical, Phone, ShieldAlert } from 'lucide-react';
+import {
+  CloseIcon, DemoFlaskIcon, PhoneIcon, RefreshIcon, ShareIcon, SosShieldIcon, UserPlusIcon,
+} from './components/ElaraIcons';
 import { supabase } from './lib/supabase';
 import { sessionUserFromAuth } from './lib/auth';
 import { EMERGENCY_NUMBER, STATE_LABEL, isTripActive, sosMessage } from './lib/trips';
 import { fetchElaraOrder, seedFromOrder, type ElaraOrder } from './lib/orders';
+import {
+  buildRepeatSeed, loadTrustedContacts, trustedShareMessage,
+  type RepeatTripSeed, type TrustedContact,
+} from './lib/localExtras';
+import { DemoContext } from './lib/demoContext';
+import {
+  DEMO_CLASSES, DEMO_DELIVERY_CLASSES, DEMO_USER, DEMO_ZONES,
+  loadDemoState, resetDemoState, saveDemoState, type DemoState,
+} from './lib/demoEngine';
 import { setTheme, useTheme } from './lib/theme';
 import { ensurePlaces } from './lib/places';
 import { waLink, cn, APOIO_PHONE } from './lib/utils';
@@ -23,13 +34,12 @@ import { ProfileView } from './views/ProfileView';
 import { ShareView } from './views/ShareView';
 
 /* Quem abre a app é o passageiro, e o primeiro download dele não devia levar
-   o painel do motorista, a consola da equipa, o estúdio de demonstração nem as
-   folhas que se abrem de um toque no perfil. São ecrãs próprios, com os
-   componentes todos atrás deles; chegam quando se abrem e ficam no aparelho.
-   O React quer um `default`, e aqui são nomes — por isso o `{ default: … }`. */
+   o painel do motorista, a consola da equipa nem as folhas que se abrem de um
+   toque no perfil. São ecrãs próprios, com os componentes todos atrás deles;
+   chegam quando se abrem e ficam no aparelho. O React quer um `default`, e
+   aqui são nomes — por isso o `{ default: … }`. */
 const DriverView = lazy(() => import('./views/DriverView').then((m) => ({ default: m.DriverView })));
 const TeamConsole = lazy(() => import('./components/TeamConsole').then((m) => ({ default: m.TeamConsole })));
-const DemoStudio = lazy(() => import('./components/DemoStudio').then((m) => ({ default: m.DemoStudio })));
 const RentalsSheet = lazy(() => import('./components/RentalsSheet').then((m) => ({ default: m.RentalsSheet })));
 const DataSheet = lazy(() => import('./components/DataSheet').then((m) => ({ default: m.DataSheet })));
 const HelpSheet = lazy(() => import('./components/HelpSheet').then((m) => ({ default: m.HelpSheet })));
@@ -109,9 +119,9 @@ export default function App() {
     try { sessionStorage.setItem('traj_splash_seen', '1'); } catch { /* modo privado */ }
     setSplash(false);
   }, []);
-  // Simulador: corre a viagem inteira sem servidor nem conta.
+  // Modo demonstração integrado: corre a app inteira com conta, carro e carteira locais.
   const [demo, setDemo] = useState(readDemo);
-  const [demoOpen, setDemoOpen] = useState(false);
+  const [demoState, setDemoStateRaw] = useState<DemoState>(() => loadDemoState());
   const [toast, setToast] = useState<{ text: string; tone: 'ok' | 'err' } | null>(null);
   const toastTimer = useRef<number | null>(null);
   const [shareToken, setShareToken] = useState<string | null>(shareTokenFromHash);
@@ -137,6 +147,8 @@ export default function App() {
   // numa viagem do histórico. É ali que se avalia, e não uma semana depois.
   const [receiptTrip, setReceiptTrip] = useState<Trip | null>(null);
   const [reportTrip, setReportTrip] = useState<Trip | null>(null);
+  const [repeatSeed, setRepeatSeed] = useState<RepeatTripSeed | null>(null);
+  const [trustedContacts, setTrustedContacts] = useState<TrustedContact[]>(() => loadTrustedContacts());
   const lastActiveId = useRef<string | null>(null);
 
   const [driver, setDriver] = useState<Driver | null>(null);
@@ -281,14 +293,31 @@ export default function App() {
     return () => { window.clearInterval(poll); supabase.removeChannel(channel); };
   }, [user, loadTrips]);
 
-  const activeTrip = myTrips.find((t) => ACTIVE_STATES.includes(t.state)) ?? null;
+  const setDemoState = useCallback((updater: (prev: DemoState) => DemoState) => {
+    setDemoStateRaw((prev) => {
+      const next = updater(prev);
+      saveDemoState(next);
+      return next;
+    });
+  }, []);
+
+  const effectiveUser = demo ? DEMO_USER : user;
+  const effectiveZones = demo ? DEMO_ZONES : zones;
+  const effectiveClasses = demo ? DEMO_CLASSES : classes;
+  const effectiveDeliveryClasses = demo ? DEMO_DELIVERY_CLASSES : deliveryClasses;
+  const effectiveTrips = demo ? demoState.trips : myTrips;
+  const effectiveTripsLoading = demo ? false : tripsLoading;
+  const effectiveDriver = demo ? demoState.driver : driver;
+  const effectiveDriverLoading = demo ? false : driverLoading;
+
+  const activeTrip = effectiveTrips.find((t) => ACTIVE_STATES.includes(t.state)) ?? null;
 
   // A zona adivinhada só se resolve quando as zonas chegam, o que acontece
   // depois do login. Por isso é um cálculo em cima da linha, não um instantâneo
   // do momento em que a encomenda foi lida.
   const orderSeed = useMemo(
-    () => (orderRow ? seedFromOrder(orderRow, zones) : null),
-    [orderRow, zones],
+    () => (orderRow ? seedFromOrder(orderRow, effectiveZones) : null),
+    [orderRow, effectiveZones],
   );
   const order = orderRow || orderLoading || orderMissing
     ? { seed: orderSeed, loading: orderLoading && !orderRow, missing: orderMissing }
@@ -301,44 +330,92 @@ export default function App() {
     const prev = lastActiveId.current;
     lastActiveId.current = activeTrip?.id ?? null;
     if (!prev || activeTrip) return;
-    const closed = myTrips.find((t) => t.id === prev);
+    const closed = effectiveTrips.find((t) => t.id === prev);
     if (closed && (closed.state === 'ended' || closed.state === 'rated' || closed.state === 'cancelled')) {
       setReceiptTrip(closed);
     }
-  }, [activeTrip, myTrips]);
+  }, [activeTrip, effectiveTrips]);
 
   const handleTripCreated = (pins: { pin: string; dropPin?: string | null }, message?: string) => {
     setFreshPins(pins);
-    loadTrips();
+    if (!demo) loadTrips();
     notify(message ?? 'Pedido criado — está na praça à espera de motorista.', 'ok');
   };
 
+  // Liga o modo demonstração directamente na app real — sem abrir janela separada.
+  const toggleDemo = useCallback((on: boolean) => {
+    setDemo(on);
+    try { localStorage.setItem(DEMO_KEY, on ? '1' : '0'); } catch { /* modo privado */ }
+    setReceiptTrip(null);
+    setReportTrip(null);
+    setFreshPins(null);
+    if (on) {
+      setDemoStateRaw(loadDemoState());
+      setAuthOpen(false);
+    } else {
+      setTab('corrida');
+    }
+    notify(
+      on
+        ? 'Modo demonstração activo — toda a app está aberta com conta, viatura e carteira de teste.'
+        : 'Modo demonstração desligado.',
+      'ok',
+    );
+  }, [notify]);
+
+  const resetDemo = useCallback(() => {
+    const fresh = resetDemoState();
+    setDemoStateRaw(fresh);
+    setReceiptTrip(null);
+    setReportTrip(null);
+    setFreshPins(null);
+    notify('Dados de demonstração repostos.', 'ok');
+  }, [notify]);
+
   const logout = async () => {
+    if (demo) {
+      toggleDemo(false);
+      return;
+    }
     await supabase.auth.signOut();
     setTab('corrida');
     notify('Sessão terminada.', 'ok');
   };
 
-  // Liga o simulador e abre-o logo: quem carrega no interruptor quer ver a app
-  // a andar, não um estado novo num sítio onde não acontece nada.
-  const toggleDemo = (on: boolean) => {
-    setDemo(on);
-    try { localStorage.setItem(DEMO_KEY, on ? '1' : '0'); } catch { /* modo privado */ }
-    if (on) setDemoOpen(true);
-    notify(on ? 'Modo demonstração ligado — tudo fica no telemóvel, sem tocar no servidor.' : 'Modo demonstração desligado.', 'ok');
-  };
+  const handleRepeatTrip = useCallback((trip: Trip) => {
+    setRepeatSeed(buildRepeatSeed(trip, effectiveClasses));
+    setReceiptTrip(null);
+    setTab('corrida');
+    notify('Rota carregada — confirme os detalhes e o preço.', 'ok');
+  }, [effectiveClasses, notify]);
+
+  const demoContextValue = useMemo(
+    () => ({
+      isDemo: demo,
+      demoState,
+      setDemoState,
+      resetDemo,
+      exitDemo: () => toggleDemo(false),
+    }),
+    [demo, demoState, setDemoState, resetDemo, toggleDemo],
+  );
 
   const sosText = sosMessage(activeTrip?.code ?? '—');
+  const activeFromName = activeTrip
+    ? effectiveZones.find((z) => z.id === activeTrip.from_zone_id)?.name ?? activeTrip.from_zone_id
+    : null;
+  const activeToName = activeTrip
+    ? effectiveZones.find((z) => z.id === activeTrip.to_zone_id)?.name ?? activeTrip.to_zone_id
+    : null;
 
   const everRentals = useEver(rentalsOpen);
   const everHelp = useEver(helpOpen);
   const everData = useEver(dataOpen);
   const everTeam = useEver(teamOpen);
-  const everDemo = useEver(demoOpen);
 
   // O mapa ocupa o ecrã inteiro entre a barra de topo e a navegação; os outros
   // ecrãs (candidatura, histórico, carteira) ficam no layout de coluna do Elara.
-  const atWork = tab === 'motorista' && !driverLoading && driver?.status === 'approved';
+  const atWork = tab === 'motorista' && !effectiveDriverLoading && effectiveDriver?.status === 'approved';
   const immersive = tab === 'corrida' || atWork;
 
   // Página pública: abre-se sem sessão e sem navegação de conta.
@@ -355,6 +432,7 @@ export default function App() {
   }
 
   return (
+    <DemoContext.Provider value={demoContextValue}>
     <div className={cn(
       'min-h-screen bg-cream dark:bg-night',
       immersive && 'app-map-shell',
@@ -366,26 +444,39 @@ export default function App() {
       <Header
         dark={dark}
         onToggleTheme={() => setTheme(!dark)}
-        userName={user?.name ?? null}
-        onAccount={() => (user ? setTab('perfil') : setAuthOpen(true))}
+        userName={effectiveUser?.name ?? null}
+        onAccount={() => (effectiveUser ? setTab('perfil') : setAuthOpen(true))}
       />
 
       <NetBanner />
 
-      {/* O simulador diz-se em todas as abas: um ecrã a fingir viagens sem o
-          avisar seria a única coisa desonesta desta app. */}
+      {/* Faixa discreta e honesta quando o modo demonstração está ligado na app real. */}
       {demo && (
-        <div className="max-w-lg mx-auto px-4 pt-3 lg:max-w-none lg:px-8">
-          <button
-            onClick={() => setDemoOpen(true)}
-            className="flex w-full items-center gap-2.5 rounded-control border border-purple-200 bg-purple-50 px-3.5 py-2.5 text-left dark:border-amber-400/40 dark:bg-amber-400/[0.08]"
-          >
-            <FlaskConical className="h-4 w-4 shrink-0 text-purple-600 dark:text-amber-400" strokeWidth={1.9} />
-            <span className="min-w-0 flex-1 text-label font-semibold text-purple-800 dark:text-amber-200">
-              Modo demonstração — simular uma viagem inteira
-            </span>
-            <span className="shrink-0 text-caption font-bold text-purple-600 dark:text-amber-400">DEMO</span>
-          </button>
+        <div className="border-b border-purple-200/80 bg-purple-50/95 px-4 py-2 dark:border-amber-400/25 dark:bg-[#23143c]">
+          <div className="mx-auto flex max-w-lg items-center justify-between gap-2 lg:max-w-none lg:px-4">
+            <div className="flex min-w-0 items-center gap-2">
+              <DemoFlaskIcon className="h-4 w-4 shrink-0 text-purple-600 dark:text-amber-400" />
+              <span className="truncate text-[12px] font-semibold text-purple-900 dark:text-amber-200">
+                Modo demonstração · conta, viatura e carteira de teste
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={resetDemo}
+                className="inline-flex h-7 items-center gap-1 rounded-lg border border-purple-300/80 bg-white px-2 text-[11px] font-semibold text-purple-700 dark:border-amber-400/35 dark:bg-white/[0.08] dark:text-amber-200"
+              >
+                <RefreshIcon className="h-3 w-3" /> Reiniciar
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleDemo(false)}
+                className="inline-flex h-7 items-center gap-1 rounded-lg bg-purple-600 px-2 text-[11px] font-semibold text-white dark:bg-amber-400 dark:text-ink"
+              >
+                <CloseIcon className="h-3 w-3" /> Sair
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -402,34 +493,38 @@ export default function App() {
       >
         {tab === 'corrida' && (
           <RideView
-            user={user}
-            zones={zones}
-            classes={classes}
-            deliveryClasses={deliveryClasses}
+            user={effectiveUser}
+            zones={effectiveZones}
+            classes={effectiveClasses}
+            deliveryClasses={effectiveDeliveryClasses}
             activeTrip={activeTrip}
-            trips={myTrips}
+            trips={effectiveTrips}
             freshPins={freshPins}
             onLogin={() => setAuthOpen(true)}
+            onOpenDemo={() => toggleDemo(true)}
             onOpenRentals={() => setRentalsOpen(true)}
             onTripCreated={handleTripCreated}
-            onRefreshTrips={loadTrips}
+            onRefreshTrips={() => { if (!demo) loadTrips(); }}
             onError={(m) => notify(m)}
             onSos={() => setSosOpen(true)}
             order={order}
             onOrderDismiss={dismissOrder}
+            repeatSeed={repeatSeed}
+            onRepeatConsumed={() => setRepeatSeed(null)}
           />
         )}
         {tab === 'viagens' && (
           <TripsView
-            user={user}
-            trips={myTrips}
-            zones={zones}
-            classes={classes}
-            loading={tripsLoading}
+            user={effectiveUser}
+            trips={effectiveTrips}
+            zones={effectiveZones}
+            classes={effectiveClasses}
+            loading={effectiveTripsLoading}
             onOpenTrip={(t) => {
               if (ACTIVE_STATES.includes(t.state)) { setTab('corrida'); return; }
               setReceiptTrip(t);
             }}
+            onRepeatTrip={handleRepeatTrip}
             onLogin={() => setAuthOpen(true)}
             onError={(m) => notify(m, 'ok')}
           />
@@ -437,12 +532,12 @@ export default function App() {
         {tab === 'motorista' && (
           <Suspense fallback={<PaneLoading label="A abrir o painel do motorista…" />}>
             <DriverView
-              user={user}
-              zones={zones}
-              classes={classes}
-              driver={driver}
-              driverLoading={driverLoading}
-              onDriverChanged={loadDriver}
+              user={effectiveUser}
+              zones={effectiveZones}
+              classes={effectiveClasses}
+              driver={effectiveDriver}
+              driverLoading={effectiveDriverLoading}
+              onDriverChanged={() => { if (!demo) loadDriver(); }}
               onLogin={() => setAuthOpen(true)}
               onError={(m) => notify(m)}
             />
@@ -450,16 +545,16 @@ export default function App() {
         )}
         {tab === 'carteira' && (
           <WalletView
-            user={user}
+            user={effectiveUser}
             onLogin={() => setAuthOpen(true)}
             onError={(m) => notify(m)}
           />
         )}
         {tab === 'perfil' && (
           <ProfileView
-            user={user}
-            driver={driver}
-            driverLoading={driverLoading}
+            user={effectiveUser}
+            driver={effectiveDriver}
+            driverLoading={effectiveDriverLoading}
             dark={dark}
             onToggleTheme={() => setTheme(!dark)}
             onLogin={() => setAuthOpen(true)}
@@ -472,7 +567,9 @@ export default function App() {
             onError={(m, tone) => notify(m, tone)}
             demo={demo}
             onDemo={toggleDemo}
-            onOpenDemo={() => setDemoOpen(true)}
+            onResetDemo={resetDemo}
+            onTrustedContactsChanged={setTrustedContacts}
+            onImportOrder={(code) => setPendingOrder(code)}
           />
         )}
       </main>
@@ -481,30 +578,79 @@ export default function App() {
 
       {/* SOS: só o número que existe de verdade — sem prometer centros que não há. */}
       <Sheet open={sosOpen} title="SOS — Emergência" onClose={() => setSosOpen(false)}>
-        <div className="rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 p-4">
-          <p className="flex items-center gap-2 font-bold text-red-700 dark:text-red-300">
-            <ShieldAlert className="w-5 h-5" /> Precisa de ajuda agora?
-          </p>
-          <p className="text-sm text-red-700/80 dark:text-red-300/80 mt-1.5">
-            A ligação sai da app para o número nacional de emergência. Se estiver numa viagem, o código vai na mensagem para quem a recebe.
-          </p>
-          <a
-            href={`tel:${EMERGENCY_NUMBER}`}
-            className="mt-4 w-full h-14 rounded-2xl font-bold text-white bg-red-600 active:bg-red-700 shadow-card flex items-center justify-center gap-2"
-          >
-            <Phone className="w-5 h-5" /> Ligar {EMERGENCY_NUMBER}
-          </a>
-          <a
-            href={waLink(APOIO_PHONE, sosText)}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 w-full h-12 rounded-2xl font-bold border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 flex items-center justify-center gap-2"
-          >
-            Avisar o suporte Elara
-          </a>
-          <p className="text-[12px] text-red-600/70 dark:text-red-400/70 mt-3">
-            Emergência {EMERGENCY_NUMBER} · O suporte responde em horário de trabalho — numa emergência real, ligue {EMERGENCY_NUMBER}.
-          </p>
+        <div className="space-y-3">
+          <div className="rounded-card bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 p-4">
+            <p className="flex items-center gap-2 font-bold text-red-700 dark:text-red-300">
+              <SosShieldIcon className="w-5 h-5" /> Precisa de ajuda agora?
+            </p>
+            <p className="text-label text-red-800/90 dark:text-red-200/90 mt-1.5 leading-relaxed">
+              A ligação sai da app para o número nacional de emergência. Se estiver numa viagem, o código da viagem vai na mensagem — nunca o PIN.
+            </p>
+            <a
+              href={`tel:${EMERGENCY_NUMBER}`}
+              className="mt-4 w-full h-14 rounded-control font-semibold text-white bg-red-600 active:bg-red-700 shadow-card flex items-center justify-center gap-2"
+            >
+              <PhoneIcon className="w-5 h-5" /> Ligar {EMERGENCY_NUMBER}
+            </a>
+            <a
+              href={waLink(APOIO_PHONE, sosText)}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 w-full h-12 rounded-control font-semibold border border-red-300 dark:border-red-800 text-red-700 dark:text-red-200 flex items-center justify-center gap-2"
+            >
+              Avisar o suporte Elara
+            </a>
+            <p className="text-caption text-red-700/80 dark:text-red-300/80 mt-3">
+              Emergência {EMERGENCY_NUMBER} · O suporte responde em horário de trabalho — numa emergência real, ligue {EMERGENCY_NUMBER}.
+            </p>
+          </div>
+
+          {/* Contactos de confiança guardados neste telemóvel (mensagem sem PIN) */}
+          <div className="surface-card rounded-card p-4">
+            <p className="text-body font-semibold text-ink dark:text-white">
+              Contactos de confiança
+            </p>
+            {trustedContacts.length > 0 ? (
+              <div className="mt-2.5 space-y-2">
+                {trustedContacts.map((tc) => (
+                  <a
+                    key={tc.id}
+                    href={waLink(
+                      tc.phone,
+                      trustedShareMessage({
+                        contactName: tc.name,
+                        trip: activeTrip,
+                        fromName: activeFromName,
+                        toName: activeToName,
+                        emergency: true,
+                      }),
+                    )}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="surface-outline flex min-h-11 items-center justify-between gap-2 rounded-control px-3 py-2 text-label font-semibold text-purple-700 dark:text-amber-300"
+                  >
+                    <span className="truncate">
+                      Avisar {tc.name} <span className="font-normal text-zinc-500 dark:text-zinc-400">· {tc.relation}</span>
+                    </span>
+                    <ShareIcon className="h-4 w-4 shrink-0" />
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-2 space-y-2.5">
+                <p className="text-label text-zinc-500 dark:text-zinc-400">
+                  Ainda não guardou contactos de família ou amigos neste telemóvel.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setSosOpen(false); setTab('perfil'); }}
+                  className="surface-outline flex h-11 w-full items-center justify-center gap-2 rounded-control text-label font-semibold text-purple-700 dark:text-amber-300"
+                >
+                  <UserPlusIcon className="h-4 w-4" /> Adicionar contacto no Perfil
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </Sheet>
 
@@ -513,6 +659,7 @@ export default function App() {
         onClose={() => setAuthOpen(false)}
         onDone={() => setAuthOpen(false)}
         onError={(m) => notify(m, 'ok')}
+        onOpenDemo={() => toggleDemo(true)}
       />
 
       {/* Cada folha só se monta ao primeiro toque: é isso que faz o ficheiro
@@ -522,22 +669,24 @@ export default function App() {
           <RentalsSheet
             open={rentalsOpen}
             onClose={() => setRentalsOpen(false)}
-            user={user}
-            zones={zones}
-            classes={classes}
-            driver={driver}
+            user={effectiveUser}
+            zones={effectiveZones}
+            classes={effectiveClasses}
+            driver={effectiveDriver}
             onLogin={() => setAuthOpen(true)}
+            onOpenDemo={() => toggleDemo(true)}
             onError={(m) => notify(m)}
           />
         </Suspense>
       )}
 
-      {user && receiptTrip && receiptTrip.passenger_id === user.uid && (
+      {effectiveUser && receiptTrip && receiptTrip.passenger_id === effectiveUser.uid && (
         <Sheet open title="Fecho da viagem" onClose={() => setReceiptTrip(null)}>
           <TripReceipt
             trip={receiptTrip}
-            zones={zones}
-            onRated={loadTrips}
+            zones={effectiveZones}
+            onRated={() => { if (!demo) loadTrips(); }}
+            onRepeat={() => handleRepeatTrip(receiptTrip)}
             onReport={() => {
               setReportTrip(receiptTrip);
               setReceiptTrip(null);
@@ -547,11 +696,11 @@ export default function App() {
         </Sheet>
       )}
 
-      {user && reportTrip && reportTrip.passenger_id === user.uid && (
+      {effectiveUser && reportTrip && reportTrip.passenger_id === effectiveUser.uid && (
         <ReportSheet
-          key={`${user.uid}:${reportTrip.id}`}
+          key={`${effectiveUser.uid}:${reportTrip.id}`}
           trip={reportTrip}
-          uid={user.uid}
+          uid={effectiveUser.uid}
           role="passenger"
           onClose={() => setReportTrip(null)}
           onError={notify}
@@ -564,7 +713,7 @@ export default function App() {
           <HelpSheet
             open={helpOpen}
             onClose={() => setHelpOpen(false)}
-            isDriver={!!driver}
+            isDriver={!!effectiveDriver}
             onOpenData={() => { setHelpOpen(false); setDataOpen(true); }}
           />
         </Suspense>
@@ -572,41 +721,27 @@ export default function App() {
 
       {/* Os dados da conta: só se lê o que o RLS já mostra, e o pedido de
           eliminação vai para a fila de reportes que a equipa lê. */}
-      {user && everData && (
+      {effectiveUser && everData && (
         <Suspense fallback={null}>
           <DataSheet
             open={dataOpen}
             onClose={() => setDataOpen(false)}
-            user={user}
-            isDriver={!!driver}
+            user={effectiveUser}
+            isDriver={!!effectiveDriver}
             onError={(m, tone) => notify(m, tone)}
           />
         </Suspense>
       )}
 
       {/* Só a equipa abre a consola; a conta comum nem sabe que ela existe. */}
-      {user?.isAdmin && everTeam && (
+      {effectiveUser?.isAdmin && everTeam && (
         <Suspense fallback={null}>
           <TeamConsole
             open={teamOpen}
             onClose={() => setTeamOpen(false)}
-            zones={zones}
-            classes={classes}
+            zones={effectiveZones}
+            classes={effectiveClasses}
             onError={(m) => notify(m)}
-          />
-        </Suspense>
-      )}
-
-      {/* «Saia da demonstração» fica sempre à mão: quem entra por engano não
-          fica preso dentro de um ecrã que finge viagens. */}
-      {everDemo && (
-        <Suspense fallback={null}>
-          <DemoStudio
-            open={demoOpen}
-            zones={zones}
-            classes={classes}
-            onClose={() => setDemoOpen(false)}
-            onExit={() => { toggleDemo(false); setDemoOpen(false); }}
           />
         </Suspense>
       )}
@@ -632,5 +767,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </DemoContext.Provider>
   );
 }

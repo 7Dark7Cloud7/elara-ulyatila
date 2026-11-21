@@ -6,7 +6,7 @@ import {
   effectivePeak, graceEnds, loadSetting, marginSplit, saveSetting,
   PEAK_CEILING, type Setting,
 } from '../lib/settings';
-import { cn, OFF_ATTR } from '../lib/utils';
+import { cn, OFF } from '../lib/utils';
 
 /**
  * O lucro da Elara, em aberto. A comissão já é calculada no servidor desde a
@@ -20,7 +20,7 @@ import { cn, OFF_ATTR } from '../lib/utils';
  * acertar a comissão com a equipa é que se fala com uma pessoa.
  */
 
-const FIELD = 'w-full h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 outline-none focus:border-purple-400 text-[15px] font-semibold text-zinc-900 dark:text-white';
+const FIELD = 'w-full h-12 rounded-control bg-white dark:bg-white/[0.06] border border-zinc-200 dark:border-white/15 px-3 outline-none focus:border-purple-500 dark:focus:border-amber-400 text-[15px] font-semibold text-ink dark:text-white';
 
 /** O que cada campo pode valer — os mesmos limites dos CHECK da 0001. */
 const LIMITS: Record<string, [number, number, number?]> = {
@@ -184,17 +184,17 @@ export function MarginPanel({ onError }: { onError: (message: string) => void })
   const split = marginSplit(1000, setting, now);
 
   return (
-    <section className="rounded-3xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 overflow-hidden">
+    <section className="surface-card rounded-card overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left active:bg-zinc-50 dark:active:bg-zinc-800/60"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left active:bg-zinc-50 dark:active:bg-white/[0.05]"
       >
         <span className="flex items-center gap-2.5 min-w-0">
-          <Percent className="w-4 h-4 shrink-0 text-purple-600 dark:text-purple-400" />
+          <Percent className="w-4 h-4 shrink-0 text-purple-600 dark:text-amber-400" />
           <span className="min-w-0">
-            <span className="block text-sm font-bold text-zinc-900 dark:text-white">Condições e lucro da Elara</span>
-            <span className="block text-[12px] text-zinc-600 dark:text-zinc-400 truncate">
+            <span className="block text-body font-semibold text-ink dark:text-white">Condições e lucro da Elara</span>
+            <span className="block text-caption text-zinc-600 dark:text-zinc-400 truncate">
               {inGrace
                 ? `Graça até ${graceEnds(setting)} — comissão 0 Kz`
                 : `${setting.commission_pct} % · ${formatKz(split.commissionKz)} numa viagem de Kz 1.000`}
@@ -207,7 +207,7 @@ export function MarginPanel({ onError }: { onError: (message: string) => void })
       {open && (
         <div className="px-4 pb-4 space-y-4">
           {revenue && (
-            <div className="rounded-2xl bg-zinc-100 dark:bg-zinc-800 p-3">
+            <div className="rounded-control bg-zinc-100 dark:bg-white/[0.06] p-3">
               <p className="flex items-center gap-2 text-[12px] font-semibold text-zinc-600 dark:text-zinc-300">
                 <TrendingUp className="w-4 h-4" /> Últimas {revenue.trips} viagens fechadas
               </p>
@@ -288,8 +288,8 @@ export function MarginPanel({ onError }: { onError: (message: string) => void })
               onClick={() => void save()}
               disabled={busy || !!errors.length || !dirty.length}
               className={cn(
-                'btn-main h-12 rounded-2xl font-bold text-sm flex items-center justify-center gap-2',
-                OFF_ATTR,
+                'h-12 rounded-control font-semibold text-label flex items-center justify-center gap-2',
+                busy || !!errors.length || !dirty.length ? OFF : 'btn-main',
               )}
             >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -299,8 +299,8 @@ export function MarginPanel({ onError }: { onError: (message: string) => void })
               onClick={() => void toggleGrace()}
               disabled={busy}
               className={cn(
-                'h-12 rounded-2xl text-sm font-semibold bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 flex items-center justify-center gap-2',
-                OFF_ATTR,
+                'h-12 rounded-control text-label font-semibold flex items-center justify-center gap-2',
+                busy ? OFF : 'surface-outline text-ink dark:text-zinc-200',
               )}
             >
               <PencilLine className="w-4 h-4" />

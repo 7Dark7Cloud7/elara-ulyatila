@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { ChevronDown, LifeBuoy, Phone, ShieldCheck } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDownIcon, CloseIcon, HelpRingIcon, PhoneIcon, SearchIcon, ShieldCheckIcon } from './ElaraIcons';
 import { Sheet } from './Sheet';
 import { APOIO_DISPLAY, APOIO_PHONE, cn, waLink } from '../lib/utils';
 import { EMERGENCY_NUMBER } from '../lib/trips';
+import { filterHelpItems } from '../lib/localExtras';
 
 /**
  * O centro de ajuda. Uma regra manda aqui: **só entra texto que a app cumpre de
@@ -112,6 +113,8 @@ const ITEMS: Item[] = [
   },
 ];
 
+const QUICK_TOPICS = ['Preço', 'Código', 'SOS', 'Troco', 'Perdidos'] as const;
+
 interface HelpSheetProps {
   open: boolean;
   onClose: () => void;
@@ -122,79 +125,150 @@ interface HelpSheetProps {
 
 export function HelpSheet({ open, onClose, isDriver, onOpenData }: HelpSheetProps) {
   const [wide, setWide] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
-  const items = ITEMS.filter((i) => !i.motorista || isDriver);
+  const available = useMemo(() => ITEMS.filter((i) => !i.motorista || isDriver), [isDriver]);
+  const items = useMemo(() => filterHelpItems(available, query), [available, query]);
+  const activeWide = wide && items.some((i) => i.id === wide)
+    ? wide
+    : query.trim() && items.length > 0
+      ? items[0].id
+      : null;
 
   return (
     <Sheet open={open} title="Ajuda e segurança" onClose={onClose} tall>
       <div className="space-y-4">
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-label text-zinc-600 dark:text-zinc-300 leading-relaxed">
           Aqui só está escrito o que a app faz de verdade. Se algo correr mal, o
           seu código de viagem é a coisa mais útil que pode ter à mão.
         </p>
 
-        <div className="rounded-2xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-4">
-          <p className="flex items-center gap-2 text-[13px] font-semibold text-red-800 dark:text-red-200">
-            <Phone className="w-4 h-4" />
+        <div className="rounded-card border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-4">
+          <p className="flex items-center gap-2 text-label font-semibold text-red-800 dark:text-red-200">
+            <PhoneIcon className="w-4 h-4 shrink-0" />
             Em perigo, ligue {EMERGENCY_NUMBER}
           </p>
-          <p className="text-[12px] text-red-800 dark:text-red-200 mt-1">
+          <p className="text-caption text-red-800/90 dark:text-red-200/90 mt-1 leading-relaxed">
             O botão SOS dentro da viagem marca o {EMERGENCY_NUMBER} e prepara a
             mensagem com o código. Não prometemos uma central da Elara a vigiar
             a app — o que existe é o número de emergência e a sua mensagem.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden">
-          {items.map((it) => {
-            const on = wide === it.id;
-            return (
-              <div key={it.id}>
+        {/* Pesquisa instantânea sem acentos */}
+        <div className="space-y-2">
+          <div className="relative">
+            <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setWide(null); }}
+              placeholder="Procurar dúvida (ex.: preço, código, troco, SOS)…"
+              aria-label="Procurar na ajuda"
+              className="w-full h-11 rounded-control bg-white dark:bg-white/[0.06] border border-zinc-200 dark:border-white/15 pl-10 pr-10 text-label text-ink dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:border-purple-500 dark:focus:border-amber-400 [&::-webkit-search-cancel-button]:appearance-none"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => { setQuery(''); setWide(null); }}
+                aria-label="Limpar pesquisa"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 dark:text-zinc-400"
+              >
+                <CloseIcon className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_TOPICS.map((topic) => {
+              const selected = query.trim().toLowerCase() === topic.toLowerCase();
+              return (
                 <button
-                  onClick={() => setWide(on ? null : it.id)}
-                  aria-expanded={on}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left active:bg-zinc-50 dark:active:bg-zinc-800/60"
+                  key={topic}
+                  type="button"
+                  onClick={() => { setQuery(selected ? '' : topic); setWide(null); }}
+                  aria-pressed={selected}
+                  className={cn(
+                    'h-8 px-3 rounded-control border text-caption font-semibold transition-colors',
+                    selected
+                      ? 'border-purple-500 bg-purple-50 text-purple-700 dark:border-amber-400 dark:bg-amber-400/[0.14] dark:text-amber-200'
+                      : 'border-zinc-200 dark:border-white/15 bg-white dark:bg-white/[0.04] text-zinc-600 dark:text-zinc-300',
+                  )}
                 >
-                  <span className="text-sm font-semibold text-zinc-900 dark:text-white">
-                    {it.q}
-                  </span>
-                  <ChevronDown className={cn(
-                    'w-4 h-4 shrink-0 text-zinc-500 dark:text-zinc-400 transition-transform',
-                    on && 'rotate-180',
-                  )} />
+                  {topic}
                 </button>
-                {on && (
-                  <div className="px-4 pb-4 space-y-2">
-                    {it.a.map((p, i) => (
-                      <p key={i} className="text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-300">
-                        {p}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
+
+        {items.length === 0 ? (
+          <div className="surface-card rounded-card p-5 text-center space-y-2">
+            <p className="text-body font-semibold text-ink dark:text-white">
+              Nenhuma resposta encontrada para «{query.trim()}»
+            </p>
+            <p className="text-caption text-zinc-500 dark:text-zinc-400">
+              Tente outra palavra ou fale directamente com o apoio no WhatsApp abaixo.
+            </p>
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="text-label font-semibold text-purple-600 dark:text-amber-400"
+            >
+              Limpar pesquisa
+            </button>
+          </div>
+        ) : (
+          <div className="surface-card rounded-card divide-y divide-zinc-200/70 dark:divide-white/10 overflow-hidden">
+            {items.map((it) => {
+              const on = activeWide === it.id;
+              return (
+                <div key={it.id}>
+                  <button
+                    onClick={() => setWide(on ? null : it.id)}
+                    aria-expanded={on}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left active:bg-zinc-50 dark:active:bg-white/[0.05]"
+                  >
+                    <span className="text-body font-semibold text-ink dark:text-white">
+                      {it.q}
+                    </span>
+                    <ChevronDownIcon className={cn(
+                      'w-4 h-4 shrink-0 text-zinc-500 dark:text-zinc-400 transition-transform',
+                      on && 'rotate-180 text-purple-600 dark:text-amber-400',
+                    )} />
+                  </button>
+                  {on && (
+                    <div className="px-4 pb-4 space-y-2">
+                      {it.a.map((p, i) => (
+                        <p key={i} className="text-label leading-relaxed text-zinc-600 dark:text-zinc-300">
+                          {p}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         <div className="flex gap-2">
           <a
             href={waLink(APOIO_PHONE, 'Olá, preciso de ajuda com a app Elara Ulyatila.')}
             target="_blank"
             rel="noreferrer"
-            className="btn-main h-12 grow rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
+            className="btn-main h-12 grow rounded-control font-semibold text-label flex items-center justify-center gap-2"
           >
-            <LifeBuoy className="w-4 h-4" /> Falar com o apoio
+            <HelpRingIcon className="w-4 h-4" /> Falar com o apoio
           </a>
           <button
             onClick={onOpenData}
-            className="h-12 px-4 rounded-2xl text-sm font-semibold bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 flex items-center gap-2"
+            className="surface-outline h-12 px-4 rounded-control text-label font-semibold text-ink dark:text-zinc-200 flex items-center gap-2"
           >
-            <ShieldCheck className="w-4 h-4" /> Os meus dados
+            <ShieldCheckIcon className="w-4 h-4" /> Os meus dados
           </button>
         </div>
 
-        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+        <p className="text-caption text-zinc-500 dark:text-zinc-400 leading-relaxed">
           Apoio pelo WhatsApp {APOIO_DISPLAY}. Escreva sempre o código da viagem
           (começa por <code className="font-mono">ELT</code>) — é assim que a
           equipa encontra o seu caso sem lhe pedir o telefone.

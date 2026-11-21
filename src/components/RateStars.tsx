@@ -1,4 +1,4 @@
-import { Star } from 'lucide-react';
+import { StarIcon } from './ElaraIcons';
 import { cn } from '../lib/utils';
 
 interface RateStarsProps {
@@ -17,7 +17,7 @@ export function RateStars({ score, busy, onPick, size = 'lg' }: RateStarsProps) 
       {[1, 2, 3, 4, 5].map((n) => {
         const filled = !!score && n <= score;
         const icon = (
-          <Star className={cn(star, 'transition-colors', filled ? 'text-amber-400 fill-amber-400' : 'text-zinc-300 dark:text-zinc-600')} />
+          <StarIcon filled={filled} className={cn(star, 'transition-colors', filled ? 'text-amber-400' : 'text-zinc-300 dark:text-zinc-600')} />
         );
         if (!onPick || score) return <span key={n}>{icon}</span>;
         return (

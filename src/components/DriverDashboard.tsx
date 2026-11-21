@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Banknote, Bell, CalendarClock, Loader2, MapPin, Navigation, Power, Radio, Star, TrendingUp } from 'lucide-react';
+import {
+  BellIcon, CalendarIcon, CashIcon, CheckCircleIcon, NavigationIcon, PinIcon,
+  PowerIcon, RadioIcon, RouteIcon, SpinnerIcon, StarIcon, TrendUpIcon,
+} from './ElaraIcons';
 import { supabase, rpcError } from '../lib/supabase';
 import type { Driver, OpenTrip, Pickup, SessionUser, TripState, VehicleClass, Zone } from '../types';
 import { DriverConsole } from './DriverConsole';
@@ -19,6 +22,9 @@ import { ShiftNotice } from './ShiftNotice';
 import { DriverPapers } from './DriverPapers';
 import { cancelBadge, ratingBadge } from '../lib/reputation';
 import { STATE_LABEL } from '../lib/trips';
+import { filterOpenDriverFeed, type DriverFeedFilter } from '../lib/localExtras';
+import { useDemo } from '../lib/demoContext';
+import { advanceDemoDriverTrip, claimDemoDriverTrip } from '../lib/demoEngine';
 
 interface DriverDashboardProps {
   user: SessionUser;
@@ -86,21 +92,24 @@ function startOfTodayAo(): number {
  * praça assim; quem pede só vê carros, nunca pedidos alheios.
  */
 export function DriverDashboard({ user, driver, zones, classes, onDriverChanged, onError }: DriverDashboardProps) {
-  const [feed, setFeed] = useState<OpenTrip[]>([]);
-  const [loadingFeed, setLoadingFeed] = useState(true);
+  const demoCtx = useDemo();
+  const isDemo = !!demoCtx?.isDemo;
+  const [liveFeed, setLiveFeed] = useState<OpenTrip[]>([]);
+  const [liveLoadingFeed, setLiveLoadingFeed] = useState(true);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [onlineBusy, setOnlineBusy] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
-  const [active, setActive] = useState<ActiveTripLite | null>(null);
+  const [liveActive, setLiveActive] = useState<ActiveTripLite | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [feedFilter, setFeedFilter] = useState<DriverFeedFilter>('all');
   const [myPos, setMyPos] = useState<LatLon | null>(null);
   // A precisão anunciada pelo aparelho, em metros: é o círculo em volta do carro
   // no mapa. Sem ela o ponto do motorista parece exacto, e não é.
   const [myAcc, setMyAcc] = useState<number | null>(null);
   const [open, setOpen] = useState(true);
   const [focus, setFocus] = useState(0);
-  const [today, setToday] = useState<{ trips: number; kz: number } | null>(null);
-  const [record, setRecord] = useState<MonthRecord | 'falhou' | null>(null);
+  const [liveToday, setLiveToday] = useState<{ trips: number; kz: number } | null>(null);
+  const [liveRecord, setLiveRecord] = useState<MonthRecord | 'falhou' | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   // Os pontos de embarque dos lugares vendidos: é o motorista que os tem de
   // conduzir, e a praça é dele.
@@ -123,6 +132,7 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
   );
 
   const loadFeed = useCallback(async () => {
+    if (isDemo) return;
     const { data } = await supabase
       .from('tr_trips_open')
       .select('*')
@@ -141,28 +151,31 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
       }
     }
     knownIds.current = new Set(rows.map((r) => r.id));
-    setFeed(rows);
-    setLoadingFeed(false);
-  }, [driver.class_id, driver.online]);
+    setLiveFeed(rows);
+    setLiveLoadingFeed(false);
+  }, [driver.class_id, driver.online, isDemo]);
 
   const loadActiveTrip = useCallback(async () => {
+    if (isDemo) return;
     // O painel do motorista mostra UMA viagem de cada vez. Num carro com
     // lugares vendidos (0004) há várias ao mesmo tempo, e a regra tem de ser a
     // da rua: quem está a ser servido continua a ser servido. Sem isto, cada
     // compra de um lugar novo trocava o painel por baixo do motorista — ele
     // estava a confirmar o código de um e ficava com o console de outro.
     const rows = await selectMyActiveTrips(driver.id);
-    setActive((prev) => (prev ? rows.find((r) => r.id === prev.id) ?? rows[0] ?? null : rows[0] ?? null));
-  }, [driver.id]);
+    setLiveActive((prev) => (prev ? rows.find((r) => r.id === prev.id) ?? rows[0] ?? null : rows[0] ?? null));
+  }, [driver.id, isDemo]);
 
   /** Numa carrinha cheia é o motorista que decide a quem serve primeiro: a
    *  lista de bordo aponta uma pessoa e o painel passa a ser dessa viagem. */
   const focusTrip = useCallback(async (tripId: string) => {
+    if (isDemo) return;
     const rows = await selectMyActiveTrips(driver.id, tripId);
-    if (rows[0]) setActive(rows[0]);
-  }, [driver.id]);
+    if (rows[0]) setLiveActive(rows[0]);
+  }, [driver.id, isDemo]);
 
   const loadToday = useCallback(async () => {
+    if (isDemo) return;
     const { data } = await supabase
       .from('tr_trip')
       .select('driver_keeps_kz')
@@ -170,13 +183,14 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
       .in('state', ['ended', 'rated'])
       .gte('created_at', startOfTodayAo());
     const rows = (data as TodayRow[]) ?? [];
-    setToday({ trips: rows.length, kz: rows.reduce((s, r) => s + r.driver_keeps_kz, 0) });
-  }, [driver.id]);
+    setLiveToday({ trips: rows.length, kz: rows.reduce((s, r) => s + r.driver_keeps_kz, 0) });
+  }, [driver.id, isDemo]);
 
   // O registo dos 30 dias lê-se uma vez por abertura, não a cada pedido que
   // muda de estado: duas contagens por minuto num 2G não valem a pena, e o
   // número que importa ao motorista é o do dia (o `loadToday`).
   const loadRecord = useCallback(async () => {
+    if (isDemo) return;
     const monthAgo = startOfTodayAo() - 29 * 86_400_000;
     const [accepted, cancelled] = await Promise.all([
       supabase
@@ -196,28 +210,30 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
     // contagem: devolve `null`. Um zero ali seria uma mentira sobre o motorista,
     // por isso é o espaço vazio que fica no ecrã.
     if (accepted.error || cancelled.error || accepted.count == null || cancelled.count == null) {
-      setRecord('falhou');
+      setLiveRecord('falhou');
       return;
     }
-    setRecord({ accepted: accepted.count, mine: cancelled.count });
-  }, [driver.id]);
+    setLiveRecord({ accepted: accepted.count, mine: cancelled.count });
+  }, [driver.id, isDemo]);
 
   useEffect(() => {
+    if (isDemo) return;
     loadFeed();
     loadActiveTrip();
     loadToday();
     loadRecord();
-  }, [loadFeed, loadActiveTrip, loadToday, loadRecord]);
+  }, [isDemo, loadFeed, loadActiveTrip, loadToday, loadRecord]);
 
   useEffect(() => {
-    if (!cls?.per_seat) { setRidesOn(false); return; }
+    if (isDemo || !cls?.per_seat) { setRidesOn(false); return; }
     let alive = true;
     ridesLive().then((v) => { if (alive) setRidesOn(v); });
     return () => { alive = false; };
-  }, [cls?.per_seat]);
+  }, [cls?.per_seat, isDemo]);
 
   // Tempo real na praça: novo pedido ou pedido aceito → a lista refresca.
   useEffect(() => {
+    if (isDemo) return;
     const channel = supabase
       .channel(`tr-feed-${driver.class_id}`)
       .on(
@@ -243,14 +259,14 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
       window.clearInterval(poll);
       supabase.removeChannel(channel);
     };
-  }, [driver.class_id, loadFeed, loadActiveTrip, loadToday]);
+  }, [isDemo, driver.class_id, loadFeed, loadActiveTrip, loadToday]);
 
   // Publicar posição: é o que faz o pedido chegar ao motorista mais perto.
   // Sem GPS não publicamos nada: um carro no mapa onde ninguém está é pior que
   // nenhum carro — é a pessoa à espera de um veículo que nunca chega. O
   // motorista continua online e a ver a praça em lista; só não aparece no mapa.
   const publishPresence = useCallback(async () => {
-    if (!onlineRef.current) return;
+    if (isDemo || !onlineRef.current) return;
     if (Date.now() - lastSentRef.current < PRESENCE_EVERY_MS - 500) return;
     if (!('geolocation' in navigator)) { setGpsError('Este navegador não tem GPS. Ligue a localização do telemóvel.'); return; }
     navigator.geolocation.getCurrentPosition(
@@ -271,14 +287,23 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 },
     );
-  }, []);
+  }, [isDemo]);
 
   useEffect(() => {
-    if (!driver.online) return;
+    if (isDemo || !driver.online) return;
     publishPresence();
     const interval = window.setInterval(publishPresence, PRESENCE_EVERY_MS);
     return () => { window.clearInterval(interval); };
-  }, [driver.online, publishPresence]);
+  }, [isDemo, driver.online, publishPresence]);
+
+  const feed = isDemo && demoCtx ? demoCtx.demoState.openDriverTrips : liveFeed;
+  const loadingFeed = isDemo ? false : liveLoadingFeed;
+  const demoActive = isDemo && demoCtx ? demoCtx.demoState.driverActiveTrip : null;
+  const active: ActiveTripLite | null = isDemo
+    ? (demoActive ? { id: demoActive.id, from_zone_id: demoActive.from_zone_id, to_zone_id: demoActive.to_zone_id, state: demoActive.state, pickup: demoActive.pickup } : null)
+    : liveActive;
+  const today = isDemo && demoCtx ? demoCtx.demoState.driverToday : liveToday;
+  const record: MonthRecord | 'falhou' | null = isDemo ? { accepted: 28, mine: 1 } : liveRecord;
 
   // O botão «o meu ponto»: pede ao aparelho uma leitura NOVA — a última pode ter
   // 15 segundos e ser da praça, não da esquina onde ele está mesmo — e leva a
@@ -313,6 +338,13 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
 
   const toggleOnline = async () => {
     if (onlineBusy) return;
+    if (isDemo && demoCtx) {
+      demoCtx.setDemoState((prev) => ({
+        ...prev,
+        driver: { ...prev.driver, online: !prev.driver.online },
+      }));
+      return;
+    }
     setOnlineBusy(true);
     const { error } = await supabase.rpc('tr_set_online', { p_online: !driver.online });
     setOnlineBusy(false);
@@ -324,6 +356,11 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
 
   const claim = async (tripId: string) => {
     if (claimingId) return;
+    if (isDemo && demoCtx) {
+      demoCtx.setDemoState((prev) => claimDemoDriverTrip(prev, tripId));
+      setSelected(null);
+      return;
+    }
     setClaimingId(tripId);
     const { error } = await supabase.rpc('tr_claim_trip', { p_trip_id: tripId });
     setClaimingId(null);
@@ -342,11 +379,15 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
     return out;
   }, [feed, zoneOf, selected]);
 
-  const ordered = useMemo(() => {
-    if (!selected) return feed;
-    const picked = feed.find((t) => t.id === selected);
-    return picked ? [picked, ...feed.filter((t) => t.id !== selected)] : feed;
-  }, [feed, selected]);
+  const ordered = useMemo(
+    () => filterOpenDriverFeed(feed, {
+      filter: feedFilter,
+      selectedId: selected,
+      myPos,
+      zoneOf,
+    }),
+    [feed, feedFilter, selected, myPos, zoneOf],
+  );
 
   // A secretária de lugares só aparece em quem conta por lugar. Um económico
   // fecha-se inteiro; fingir partilha onde não há seria enganar os dois lados.
@@ -409,22 +450,88 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
         top={
           <FloatPill>
             <span className="flex items-center gap-2 text-[13px] font-semibold text-zinc-900 dark:text-white">
-              <Navigation className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+              <NavigationIcon className="w-4 h-4 text-purple-600 dark:text-purple-400" />
               {active.state === 'ongoing' ? (b?.name ?? 'Destino') : (a?.name ?? 'Encontro')}
             </span>
           </FloatPill>
         }
         actions={<LocateFab onClick={locate} gps={fabGps} justFixed={justFixed} />}
       >
-        {runDesk && <div className="pb-3">{runDesk}</div>}
-        <DriverConsole
-          tripId={active.id}
-          user={user}
-          driver={driver}
-          zones={zones}
-          onFinished={() => { loadActiveTrip(); loadFeed(); loadToday(); onDriverChanged(); }}
-          onError={onError}
-        />
+        {isDemo && demoCtx && demoActive ? (
+          <div className="space-y-3 pt-1">
+            <div className="rounded-card bg-purple-600 p-4 text-white shadow-card dark:bg-[#3a1a6e]">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-caption font-semibold uppercase tracking-[0.14em] text-purple-100">
+                  Corrida activa · DEMO
+                </span>
+                <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-caption font-semibold">
+                  {demoActive.code}
+                </span>
+              </div>
+              <p className="mt-1.5 font-display text-title font-medium leading-tight">
+                {STATE_LABEL[demoActive.state]}
+              </p>
+              <p className="mt-1 text-label text-purple-100">
+                Passageiro: {demoActive.passenger_name} · recebe {formatKz(demoActive.driver_keeps_kz)} líquidos
+              </p>
+            </div>
+
+            <div className="surface-card rounded-card p-4 space-y-2.5">
+              <div className="flex items-center justify-between gap-2 text-body font-semibold text-ink dark:text-white">
+                <span className="flex items-center gap-1.5 truncate">
+                  <RouteIcon className="h-4 w-4 shrink-0 text-purple-600 dark:text-amber-400" />
+                  {name(demoActive.from_zone_id)} → {name(demoActive.to_zone_id)}
+                </span>
+                <span className="shrink-0 text-purple-700 dark:text-amber-300">
+                  {formatKz(demoActive.price_kz)}
+                </span>
+              </div>
+              <p className="text-label text-zinc-500 dark:text-zinc-400">
+                {demoActive.distance_km} km · pagamento {demoActive.payment === 'cash' ? 'em dinheiro' : 'por Multicaixa'}
+                {demoActive.kind === 'entrega' && demoActive.parcel?.what ? ` · ${demoActive.parcel.what}` : ''}
+              </p>
+              {demoActive.state === 'waiting_pin' && (
+                <div className="rounded-control border border-purple-200 bg-purple-50 px-3 py-2 text-label font-semibold text-purple-800 dark:border-amber-400/35 dark:bg-amber-400/10 dark:text-amber-200">
+                  PIN de embarque do passageiro (DEMO): <span className="font-mono text-body font-bold tracking-widest">4821</span>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const finishing = demoActive.state === 'ongoing';
+                const earned = demoActive.driver_keeps_kz;
+                demoCtx.setDemoState((prev) => advanceDemoDriverTrip(prev));
+                if (finishing) {
+                  onError(`Corrida concluída! +${formatKz(earned)} adicionados à carteira e aos ganhos de hoje.`);
+                }
+              }}
+              className="btn-main flex h-14 w-full items-center justify-center gap-2 rounded-card text-control font-semibold"
+            >
+              <CheckCircleIcon className="h-5 w-5" />
+              {demoActive.state === 'accepted'
+                ? 'A caminho do embarque'
+                : demoActive.state === 'arriving'
+                  ? 'Cheguei ao ponto · pedir PIN'
+                  : demoActive.state === 'waiting_pin'
+                    ? 'Confirmar PIN 4821 e iniciar corrida'
+                    : `Concluir corrida e receber ${formatKz(demoActive.driver_keeps_kz)}`}
+            </button>
+          </div>
+        ) : (
+          <>
+            {runDesk && <div className="pb-3">{runDesk}</div>}
+            <DriverConsole
+              tripId={active.id}
+              user={user}
+              driver={driver}
+              zones={zones}
+              onFinished={() => { loadActiveTrip(); loadFeed(); loadToday(); onDriverChanged(); }}
+              onError={onError}
+            />
+          </>
+        )}
       </MapScreen>
     );
   }
@@ -443,7 +550,7 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
       top={
         <FloatPill className={cn(driver.online && 'ring-2 ring-purple-500/40')}>
           <span className="flex items-center gap-2 text-[13px] font-semibold text-zinc-900 dark:text-white">
-            <Radio className={cn('w-4 h-4', driver.online ? 'text-purple-600 dark:text-purple-400 map-pulse' : 'text-zinc-400')} />
+            <RadioIcon className={cn('w-4 h-4', driver.online ? 'text-purple-600 dark:text-purple-400 map-pulse' : 'text-zinc-400')} />
             {driver.online
               ? feed.length === 0 ? 'Online — praça quieta' : `${feed.length} pedido${feed.length > 1 ? 's' : ''} na sua categoria`
               : 'Offline — ninguém o vê'}
@@ -476,7 +583,7 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
                 </p>
                 <div className={cn('flex items-center gap-3 mt-0.5 text-[12px]', driver.online ? 'text-purple-100' : 'text-zinc-500 dark:text-zinc-400')}>
                   <span className="flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <StarIcon filled className="w-3.5 h-3.5" />
                     {ratingBadge(driver)}
                   </span>
                   <span>{driver.trips} viagens</span>
@@ -500,8 +607,8 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
                 driver.online ? 'left-8 bg-purple-600 dark:bg-ink' : 'left-1 bg-white dark:bg-zinc-900',
               )}>
                 {onlineBusy
-                  ? <Loader2 className={cn('w-3.5 h-3.5 animate-spin', driver.online ? 'text-white dark:text-amber-400' : 'text-zinc-500 dark:text-zinc-400')} />
-                  : <Power className={cn('w-3.5 h-3.5', driver.online ? 'text-white dark:text-amber-400' : 'text-zinc-500 dark:text-zinc-400')} />}
+                  ? <SpinnerIcon className={cn('w-3.5 h-3.5 animate-spin', driver.online ? 'text-white dark:text-amber-400' : 'text-zinc-500 dark:text-zinc-400')} />
+                  : <PowerIcon className={cn('w-3.5 h-3.5', driver.online ? 'text-white dark:text-amber-400' : 'text-zinc-500 dark:text-zinc-400')} />}
               </span>
             </button>
           </div>
@@ -510,7 +617,7 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
               'flex w-fit items-center gap-1.5 text-[12px] mt-3 rounded-lg px-2.5 py-1',
               gpsError ? 'font-semibold bg-amber-100 text-amber-800' : 'bg-white/10 text-purple-100',
             )}>
-              <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <PinIcon className="w-3.5 h-3.5 shrink-0" />
               {gpsError ?? (myPos && home ? `A ${distanceText(myPos, home) ?? '0 m'} da sua praça` : 'A partilhar a sua posição no mapa')}
             </p>
           )}
@@ -520,7 +627,7 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
         <div className="grid grid-cols-3 gap-2">
           <div className="surface-card rounded-card p-3">
             <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5 text-purple-600 dark:text-amber-400 shrink-0" />
+              <TrendUpIcon className="w-3.5 h-3.5 text-purple-600 dark:text-amber-400 shrink-0" />
               Hoje
             </p>
             <p className="mt-1 font-display text-[17px] font-semibold leading-tight text-ink dark:text-white truncate">
@@ -541,17 +648,17 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
           </div>
         </div>
 
-        {runDesk}
+        {!isDemo && runDesk}
 
         <BatteryNotice role="driver" />
         <ShiftNotice uid={user.uid} online={driver.online} />
-        <DriverPapers driverId={driver.id} onError={onError} />
+        {!isDemo && <DriverPapers driverId={driver.id} onError={onError} />}
 
         {/* Os últimos 30 dias, contados pelo servidor e não por nós: é o número
             com que a equipa fala com o motorista, por isso ele vê-lo-á também. */}
         {record === 'falhou' ? (
           <p className="px-1 flex items-center gap-2 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
-            <CalendarClock className="w-4 h-4 shrink-0" />
+            <CalendarIcon className="w-4 h-4 shrink-0" />
             Não conseguimos contar os últimos 30 dias.
             <button
               onClick={loadRecord}
@@ -562,50 +669,91 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
           </p>
         ) : record && (
           <p className="px-1 flex items-center gap-2 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
-            <CalendarClock className="w-4 h-4 shrink-0" />
+            <CalendarIcon className="w-4 h-4 shrink-0" />
             30 dias: {record.accepted === 0
               ? 'sem corridas aceites'
               : cancelBadge(record.accepted, record.mine)}.
           </p>
         )}
 
-        <DriverBoard driver={driver} />
+        {!isDemo && <DriverBoard driver={driver} />}
 
         {/* Primeira vez na praça: três passos, escritos uma vez. */}
         {driver.trips === 0 && (
-          <div className="animate-enter rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-4 shadow-float">
-            <p className="flex items-center gap-2 text-[13px] font-bold text-zinc-900 dark:text-zinc-50">
-              <Bell className="w-4 h-4 text-purple-600 dark:text-purple-400" /> Primeira vez aqui?
+          <div className="animate-enter surface-card rounded-card p-4">
+            <p className="flex items-center gap-2 text-body font-semibold text-ink dark:text-white">
+              <BellIcon className="w-4 h-4 text-purple-600 dark:text-amber-400" /> Primeira vez aqui?
             </p>
-            <ol className="mt-2 space-y-1.5 text-[12px] font-medium leading-relaxed text-zinc-600 dark:text-zinc-300">
+            <ol className="mt-2 space-y-1.5 text-label leading-relaxed text-zinc-600 dark:text-zinc-300">
               <li>1. Ligue o modo online (botão acima) — é isso que põe o seu carro no mapa.</li>
               <li>2. Quando cair um pedido, o telemóvel vibra. Leia o trajecto e aceite.</li>
               <li>3. No encontro, pergunte o código de 4 números e escreva-o. Só aí a corrida começa.</li>
             </ol>
-            <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400 mt-2.5">
+            <p className="text-caption text-zinc-500 dark:text-zinc-400 mt-2.5">
               As suas primeiras viagens são de teste: a equipa acompanha. O dinheiro entra na carteira quando fecha cada corrida.
             </p>
           </div>
         )}
 
         {loadingFeed && (
-          <p className="text-center text-zinc-500 dark:text-zinc-400 py-6 text-sm">a carregar a praça…</p>
+          <p className="text-center text-zinc-500 dark:text-zinc-400 py-6 text-label">a carregar a praça…</p>
         )}
 
         {!loadingFeed && feed.length === 0 && (
-          <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-6 text-center">
-            <Navigation className="w-7 h-7 text-zinc-300 dark:text-zinc-600 mx-auto" />
-            <p className="font-bold text-zinc-900 dark:text-white mt-2">Sem pedidos nesta categoria</p>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+          <div className="surface-card rounded-card p-6 text-center">
+            <NavigationIcon className="w-7 h-7 text-zinc-400 dark:text-zinc-500 mx-auto" />
+            <p className="font-semibold text-ink dark:text-white mt-2">Sem pedidos nesta categoria</p>
+            <p className="text-label text-zinc-500 dark:text-zinc-400 mt-1">
               Fique online — o próximo pedido aparece aqui e no mapa no mesmo segundo.
             </p>
             {cls?.per_seat && ridesOn && (
-              <p className="text-[12px] font-bold text-purple-700 dark:text-purple-300 mt-2">
+              <p className="text-caption font-semibold text-purple-700 dark:text-amber-300 mt-2">
                 {cls.label} é de lugares: costuma encher em hora de ponta, junto a escolas e
                 terminais. Enquanto a praça está quieta, anuncie a sua corrida acima e venda
                 lugar a lugar.
               </p>
             )}
+          </div>
+        )}
+
+        {!loadingFeed && feed.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar pedidos da praça">
+            {([
+              ['all', `Todos (${feed.length})`],
+              ['cash', 'Dinheiro'],
+              ['multicaixa', 'Multicaixa'],
+              ...(myPos ? [['nearest', 'Mais perto'] as const] : []),
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setFeedFilter(id)}
+                aria-pressed={feedFilter === id}
+                className={cn(
+                  'h-9 rounded-control border px-3 text-caption font-semibold transition-colors',
+                  feedFilter === id
+                    ? 'border-purple-600 bg-purple-600 text-white dark:border-amber-400 dark:bg-amber-400 dark:text-ink'
+                    : 'surface-outline text-zinc-600 dark:text-zinc-300',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {!loadingFeed && feed.length > 0 && ordered.length === 0 && (
+          <div className="surface-card rounded-card p-5 text-center">
+            <p className="text-body font-semibold text-ink dark:text-white">
+              Sem pedidos para este filtro
+            </p>
+            <button
+              type="button"
+              onClick={() => setFeedFilter('all')}
+              className="mt-2 h-9 px-3 rounded-control surface-outline text-label font-semibold text-purple-700 dark:text-amber-300"
+            >
+              Mostrar todos ({feed.length})
+            </button>
           </div>
         )}
 
@@ -636,7 +784,7 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
                       {t.distance_km} km
                     </span>
                     <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-white/[0.08] dark:text-zinc-300 inline-flex items-center gap-1">
-                      <Banknote className="w-3 h-3" aria-hidden="true" />
+                      <CashIcon className="w-3 h-3" />
                       {t.payment === 'cash' ? 'Dinheiro' : 'Multicaixa'}
                     </span>
                   </div>
@@ -705,7 +853,7 @@ export function DriverDashboard({ user, driver, zones, classes, onDriverChanged,
                     )}
                   >
                     {claimingId === t.id
-                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      ? <SpinnerIcon className="w-4 h-4 animate-spin" />
                       : <VehicleArt kind={vehicleKindFor(t.class_id)} tone="active" className="w-7 h-auto" />}
                     Aceitar · {formatKz(t.price_kz)}
                   </button>

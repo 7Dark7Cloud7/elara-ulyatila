@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { ArrowRight, CheckCircle2, Flag, Loader2, Share2, XCircle } from 'lucide-react';
+import {
+  ArrowRightIcon, CheckCircleIcon, FlagIcon, RepeatIcon, ShareIcon, SpinnerIcon, XCircleIcon,
+} from './ElaraIcons';
 import { supabase, rpcError } from '../lib/supabase';
+import { useDemo } from '../lib/demoContext';
+import { rateDemoTrip } from '../lib/demoEngine';
 import type { Trip, TripEvent, Zone } from '../types';
 import { RateStars } from './RateStars';
 import { ReportButton } from './ReportSheet';
@@ -15,6 +19,8 @@ interface TripReceiptProps {
   zones: Zone[];
   onRated: () => void;
   onReport: () => void;
+  /** Repetir esta viagem num toque: preenche partida, destino e categoria no Início. */
+  onRepeat?: () => void;
   onError: (message: string, tone?: 'ok' | 'err') => void;
 }
 
@@ -23,7 +29,9 @@ interface TripReceiptProps {
  * ficam. Abre-se do histórico e no momento em que a viagem termina — é ali que
  * a pessoa ainda tem o motorista na cabeça, não três dias depois.
  */
-export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripReceiptProps) {
+export function TripReceipt({ trip, zones, onRated, onReport, onRepeat, onError }: TripReceiptProps) {
+  const demoCtx = useDemo();
+  const isDemo = !!demoCtx?.isDemo;
   const [score, setScore] = useState<number | null>(trip.passenger_rating ?? null);
   const [busy, setBusy] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
@@ -39,22 +47,25 @@ export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripRec
   const celebrate = !cancelled && score === null;
 
   useEffect(() => {
+    if (isDemo) {
+      setReviewsOn(true);
+      setShareOn(false);
+      return;
+    }
     let alive = true;
     reviewsLive().then((v) => { if (alive) setReviewsOn(v); });
     shareLinksLive().then((v) => { if (alive) setShareOn(v); });
     return () => { alive = false; };
-  }, []);
+  }, [isDemo]);
 
-  // O link de partilha é um token de leitura: mostra a viagem a quem está fora
-  // sem sessão, sem código de embarque e sem telefone de ninguém.
   useEffect(() => {
-    if (!shareOn || cancelled) return;
+    if (isDemo || !shareOn || cancelled) return;
     let alive = true;
     createShareToken(trip.id).then((token) => {
       if (alive && token) setLink(`${window.location.origin}${window.location.pathname}#/viagem/${token}`);
     });
     return () => { alive = false; };
-  }, [shareOn, cancelled, trip.id]);
+  }, [isDemo, shareOn, cancelled, trip.id]);
 
   const bits = useMemo(() => (celebrate && !reduceMotion()
     ? Array.from({ length: 14 }, (_, i) => ({
@@ -67,6 +78,12 @@ export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripRec
 
   const rate = async (n: number) => {
     if (busy || score) return;
+    if (isDemo && demoCtx) {
+      demoCtx.setDemoState((prev) => rateDemoTrip(prev, trip.id, n));
+      setScore(n);
+      onRated();
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.rpc('tr_rate', { p_trip_id: trip.id, p_score: n });
     setBusy(false);
@@ -77,6 +94,11 @@ export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripRec
 
   const sendTags = async () => {
     if (!tags.length || sendingTags) return;
+    if (isDemo) {
+      setTags([]);
+      onError('Elogio registado (modo demonstração).', 'ok');
+      return;
+    }
     setSendingTags(true);
     const msg = await addReview(trip.id, tags);
     setSendingTags(false);
@@ -95,26 +117,26 @@ export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripRec
             <span
               key={i}
               className={cn('confetti-bit', b.tone)}
-              style={{ left: b.left, animationDelay: b.delay, '--drift': b.drift } as React.CSSProperties}
+              style={{ left: b.left, animationDelay: b.delay, '--drift': b.drift } as CSSProperties}
             />
           ))}
         </div>
       )}
 
       <div className={cn(
-        'rounded-3xl p-5 text-white shadow-card',
-        cancelled ? 'bg-zinc-700' : 'bg-purple-600',
+        'rounded-card p-5 text-white shadow-card',
+        cancelled ? 'bg-zinc-700' : 'bg-purple-600 dark:bg-[#3a1a6e]',
       )}>
-        <p className="text-[12px] font-medium text-white/70">
+        <p className="text-caption font-medium text-white/75">
           {trip.kind === 'entrega' ? 'Entrega' : 'Viagem'} {trip.code} · {when(trip.created_at)}
         </p>
-        <h3 className="text-xl font-bold tracking-tight leading-tight mt-0.5 flex items-center gap-2">
-          {cancelled ? <XCircle className="w-5 h-5 shrink-0" /> : <CheckCircle2 className="w-5 h-5 shrink-0" />}
+        <h3 className="font-display text-lead font-medium tracking-tight leading-tight mt-0.5 flex items-center gap-2">
+          {cancelled ? <XCircleIcon className="w-5 h-5 shrink-0" /> : <CheckCircleIcon className="w-5 h-5 shrink-0" />}
           {STATE_LABEL[trip.state]}
         </h3>
-        <div className="mt-3 flex items-center gap-2 text-sm font-bold">
+        <div className="mt-3 flex items-center gap-2 text-body font-semibold">
           <span className="truncate">{from}</span>
-          <ArrowRight className="w-4 h-4 shrink-0" />
+          <ArrowRightIcon className="w-4 h-4 shrink-0 text-amber-300" />
           <span className="truncate">{to}</span>
         </div>
       </div>
@@ -122,42 +144,42 @@ export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripRec
       {!cancelled && (
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Distância" value={`${trip.distance_km} km`} />
-          <Stat label="Dentro do carro" value={minutes ? `${minutes} min` : '—'} />
+          <Stat label="Duração" value={minutes ? `${minutes} min` : '—'} />
           <Stat label="Pago" value={formatKz(trip.price_kz)} accent />
         </div>
       )}
 
       {cancelled && (
-        <p className="text-sm text-zinc-600 dark:text-zinc-300 rounded-2xl bg-zinc-100 dark:bg-zinc-800 p-4">
+        <p className="surface-card rounded-card p-4 text-body text-zinc-600 dark:text-zinc-300">
           {cancelNote(trip) ?? 'Viagem cancelada.'} Nenhuma viagem lhe é cobrada por ter pedido.
         </p>
       )}
 
       {!cancelled && trip.driver_name && (
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 p-4">
-          <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+        <div className="surface-card rounded-card p-4">
+          <p className="text-caption font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
             {trip.kind === 'entrega' ? 'Motorista' : 'Quem o levou'}
           </p>
-          <p className="font-semibold text-zinc-900 dark:text-white mt-1">
+          <p className="mt-1 text-body font-semibold text-ink dark:text-white">
             {trip.driver_name} · {trip.car_model ?? ''} {trip.plate ?? ''}
           </p>
           {score === null ? (
             <>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-3">Como correu a viagem?</p>
+              <p className="mt-3 text-label text-zinc-500 dark:text-zinc-400">Como correu a viagem?</p>
               <div className="mt-2 flex items-center gap-3">
                 <RateStars score={null} busy={busy} onPick={rate} />
-                {busy && <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />}
+                {busy && <SpinnerIcon className="w-4 h-4 animate-spin text-zinc-400" />}
               </div>
             </>
           ) : (
             <div className="mt-3 flex items-center gap-3">
               <RateStars score={score} busy={false} size="sm" />
-              <span className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">A sua avaliação</span>
+              <span className="text-label font-medium text-zinc-500 dark:text-zinc-400">A sua avaliação</span>
             </div>
           )}
           {score !== null && reviewsOn && score >= 4 && (
-            <div className="mt-4 border-t border-zinc-100 dark:border-zinc-800 pt-3">
-              <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+            <div className="mt-4 border-t border-zinc-200 pt-3 dark:border-[rgba(185,168,220,0.2)]">
+              <p className="text-label font-medium text-zinc-500 dark:text-zinc-400">
                 O que se há-de dizer dele?
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -166,13 +188,14 @@ export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripRec
                   return (
                     <button
                       key={c.id}
+                      type="button"
                       onClick={() => setTags((prev) => (on ? prev.filter((x) => x !== c.id) : [...prev, c.id]))}
                       aria-pressed={on}
                       className={cn(
-                        'rounded-full px-3 py-1.5 text-[12px] font-semibold border transition-colors',
+                        'rounded-full px-3 py-1.5 text-label font-semibold border transition-colors',
                         on
-                          ? 'bg-purple-600 border-purple-600 text-white'
-                          : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200',
+                          ? 'bg-purple-600 border-purple-600 text-white dark:bg-amber-400 dark:border-amber-400 dark:text-ink'
+                          : 'surface-outline text-zinc-700 dark:text-zinc-200',
                       )}
                     >{c.label}</button>
                   );
@@ -180,11 +203,12 @@ export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripRec
               </div>
               {tags.length > 0 && (
                 <button
+                  type="button"
                   onClick={sendTags}
                   disabled={sendingTags}
-                  className="mt-3 h-11 px-4 rounded-2xl font-bold text-sm text-white bg-purple-600 active:bg-purple-700 flex items-center gap-2"
+                  className="btn-main mt-3 h-11 px-4 rounded-control font-semibold text-label inline-flex items-center gap-2"
                 >
-                  {sendingTags && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {sendingTags && <SpinnerIcon className="w-4 h-4 animate-spin" />}
                   Enviar elogio
                 </button>
               )}
@@ -193,22 +217,32 @@ export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripRec
         </div>
       )}
 
+      {onRepeat && (
+        <button
+          type="button"
+          onClick={onRepeat}
+          className="btn-main w-full h-12 rounded-control font-semibold text-body flex items-center justify-center gap-2"
+        >
+          <RepeatIcon className="w-4 h-4" /> Repetir esta viagem
+        </button>
+      )}
+
       <div className="grid grid-cols-2 gap-2">
         <a
           href={waLink('', shareText)}
           target="_blank"
           rel="noreferrer"
-          className="h-12 rounded-2xl font-bold text-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-200 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+          className="h-12 rounded-control font-semibold text-label surface-outline flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
         >
-          <Share2 className="w-4 h-4" /> Partilhar recibo
+          <ShareIcon className="w-4 h-4" /> Partilhar recibo
         </a>
         <a
           href={waLink(APOIO_PHONE, `Viagem ${trip.code}: preciso de ajuda com este fecho.`)}
           target="_blank"
           rel="noreferrer"
-          className="h-12 rounded-2xl font-bold text-sm border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/60 text-red-600 dark:text-red-400 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+          className="h-12 rounded-control font-semibold text-label surface-outline text-red-600 dark:text-red-300 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
         >
-          <Flag className="w-4 h-4" /> Falar com a equipa
+          <FlagIcon className="w-4 h-4" /> Falar com a equipa
         </a>
       </div>
 
@@ -219,7 +253,7 @@ export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripRec
       />
 
       {!cancelled && trip.payment === 'cash' && (
-        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+        <p className="text-caption text-zinc-500 dark:text-zinc-400">
           Pagamento em dinheiro fecha-se dentro do carro. Se ficou por pagar, use «Falar com a
           equipa» antes de qualquer acordo por fora — é o registo que protege os dois lados.
         </p>
@@ -230,9 +264,9 @@ export function TripReceipt({ trip, zones, onRated, onReport, onError }: TripRec
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700 p-3">
-      <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className={cn('font-semibold mt-0.5 leading-tight', accent ? 'text-purple-600 dark:text-purple-400' : 'text-zinc-900 dark:text-white')}>
+    <div className="surface-card rounded-card p-3">
+      <p className="text-caption font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
+      <p className={cn('mt-0.5 font-semibold leading-tight', accent ? 'text-purple-700 dark:text-amber-300' : 'text-ink dark:text-white')}>
         {value}
       </p>
     </div>

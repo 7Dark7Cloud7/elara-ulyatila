@@ -18,7 +18,7 @@ import { MyReports } from './MyReports';
  * de suporte que a equipa lê todos os dias.
  */
 
-const BTN = 'h-12 rounded-2xl font-bold text-sm flex items-center gap-2 '
+const BTN = 'h-12 rounded-control font-semibold text-label flex items-center gap-2 '
   + 'justify-center active:scale-[0.98] transition-transform';
 
 const LABEL: Record<string, string> = {
@@ -123,9 +123,9 @@ export function DataSheet({ open, onClose, user, isDriver, onError }: DataSheetP
         </p>
 
         {/* ---------------- exportação ---------------- */}
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4">
-          <p className="flex items-center gap-2 text-[13px] font-semibold text-zinc-900 dark:text-white">
-            <FileJson className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+        <div className="surface-card rounded-card p-4">
+          <p className="flex items-center gap-2 text-label font-semibold text-ink dark:text-white">
+            <FileJson className="w-4 h-4 text-purple-600 dark:text-amber-400" />
             Exportar os meus dados
           </p>
 
@@ -205,14 +205,14 @@ export function DataSheet({ open, onClose, user, isDriver, onError }: DataSheetP
                 <button
                   onClick={copy}
                   aria-label="Copiar os dados"
-                  className={`${BTN} shrink-0 px-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200`}
+                  className={`${BTN} surface-outline shrink-0 px-4 text-ink dark:text-zinc-200`}
                 >
-                  {copied ? <Check className="w-4 h-4 text-purple-600 dark:text-purple-400" /> : <Copy className="w-4 h-4" />}
+                  {copied ? <Check className="w-4 h-4 text-purple-600 dark:text-amber-400" /> : <Copy className="w-4 h-4" />}
                   {copied ? 'Copiado' : 'Copiar'}
                 </button>
               </div>
 
-              <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              <p className="text-caption text-zinc-500 dark:text-zinc-400">
                 No telemóvel, se o ficheiro não descer, use «Copiar» e cole numa nota
                 ou num e-mail seu.
               </p>
@@ -223,7 +223,7 @@ export function DataSheet({ open, onClose, user, isDriver, onError }: DataSheetP
                   value={texto}
                   onFocus={(e) => e.target.select()}
                   aria-label="Dados em texto, para copiar à mão"
-                  className="w-full h-40 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-700 p-3 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 outline-none focus:border-purple-500"
+                  className="w-full h-40 rounded-control bg-white dark:bg-white/[0.05] border border-zinc-200 dark:border-white/15 p-3 text-[11px] font-mono text-zinc-700 dark:text-zinc-300 outline-none focus:border-purple-500 dark:focus:border-amber-400"
                 />
               )}
             </div>
@@ -231,7 +231,7 @@ export function DataSheet({ open, onClose, user, isDriver, onError }: DataSheetP
         </div>
 
         {/* ---------------- eliminação ---------------- */}
-        <div className="rounded-2xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-4">
+        <div className="rounded-card border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 p-4">
           <p className="flex items-center gap-2 text-[13px] font-semibold text-red-800 dark:text-red-200">
             <ShieldCheck className="w-4 h-4" />
             Apagar a minha conta
@@ -285,7 +285,7 @@ export function DataSheet({ open, onClose, user, isDriver, onError }: DataSheetP
                 onChange={(e) => setNote(e.target.value.slice(0, 400))}
                 placeholder="Quer dizer-nos porquê? (opcional)"
                 rows={2}
-                className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:border-purple-500"
+                className="w-full rounded-control bg-white dark:bg-white/[0.06] border border-zinc-200 dark:border-white/15 px-3 py-2 text-body text-ink dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:border-purple-500 dark:focus:border-amber-400"
               />
 
               <button

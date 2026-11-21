@@ -207,26 +207,26 @@ export function DriverConsole({
       </div>
 
       {/* Quem vai no carro / o que se transporta */}
-      <div className="rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-4 shadow-sm">
+      <div className="surface-card rounded-card p-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-control bg-purple-100 dark:bg-amber-400/[0.14] text-purple-600 dark:text-amber-400 flex items-center justify-center shrink-0">
             <UserRound className="w-5 h-5" />
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-zinc-900 dark:text-white truncate">
+            <p className="font-semibold text-ink dark:text-white truncate">
               {trip.kind === 'entrega' ? 'Entrega' : trip.passenger_name}
             </p>
             {trip.kind === 'entrega' && trip.parcel ? (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate">
+              <p className="text-label text-zinc-500 dark:text-zinc-400 truncate">
                 {trip.parcel.what} · recebe {trip.parcel.toName}
               </p>
             ) : (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Passageiro confirmado pelo código</p>
+              <p className="text-label text-zinc-500 dark:text-zinc-400">Passageiro confirmado pelo código</p>
             )}
           </div>
         </div>
         {trip.pickup && (
-          <p className="flex items-start gap-2 text-[12px] font-bold text-amber-800 dark:text-amber-300 mt-3">
+          <p className="flex items-start gap-2 text-caption font-semibold text-amber-800 dark:text-amber-300 mt-3">
             <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
             <span>
               Embarque marcado no mapa
@@ -236,12 +236,12 @@ export function DriverConsole({
           </p>
         )}
         {vibe && (
-          <p className="text-[12px] font-bold text-purple-700 dark:text-purple-300 mt-2">
+          <p className="text-caption font-semibold text-purple-700 dark:text-amber-300 mt-2">
             Este passageiro pede: {vibe.toLowerCase()}. Faça o que puder — não é uma obrigação.
           </p>
         )}
         {trip.state !== 'searching' && (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
+          <p className="text-caption text-zinc-500 dark:text-zinc-400 mt-3 border-t border-zinc-200/70 dark:border-white/10 pt-3">
             {nextHint(trip.state, trip.kind)}
           </p>
         )}
@@ -255,17 +255,17 @@ export function DriverConsole({
             href={mapsUrl(navAt.lat, navAt.lon, navLabel)}
             target="_blank"
             rel="noreferrer"
-            className="h-12 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 active:scale-[0.98] transition-transform"
+            className="surface-outline h-12 rounded-control font-semibold text-label flex items-center justify-center gap-2 text-ink dark:text-white active:scale-[0.98] transition-transform"
           >
-            <Navigation className="w-4 h-4 text-purple-600 dark:text-purple-400" /> Google Maps
+            <Navigation className="w-4 h-4 text-purple-600 dark:text-amber-400" /> Google Maps
           </a>
           <a
             href={wazeUrl(navAt.lat, navAt.lon)}
             target="_blank"
             rel="noreferrer"
-            className="h-12 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 active:scale-[0.98] transition-transform"
+            className="surface-outline h-12 rounded-control font-semibold text-label flex items-center justify-center gap-2 text-ink dark:text-white active:scale-[0.98] transition-transform"
           >
-            <Navigation className="w-4 h-4 text-purple-600 dark:text-purple-400" /> Waze
+            <Navigation className="w-4 h-4 text-purple-600 dark:text-amber-400" /> Waze
           </a>
         </div>
       )}
@@ -284,9 +284,9 @@ export function DriverConsole({
 
       {/* O código escrito — o motorista nunca o lê, escreve o que ouviu. */}
       {trip.state === 'waiting_pin' && (
-        <div className="rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-5 shadow-sm">
-          <p className="flex items-center gap-2 text-xs font-bold text-zinc-500 dark:text-zinc-400">
-            <KeyRound className="w-4 h-4" /> Pergunte o código ao {trip.kind === 'entrega' ? 'remetente' : 'passageiro'}
+        <div className="surface-card rounded-card p-5">
+          <p className="flex items-center gap-2 text-caption font-semibold text-zinc-500 dark:text-zinc-400">
+            <KeyRound className="w-4 h-4 text-purple-600 dark:text-amber-400" /> Pergunte o código ao {trip.kind === 'entrega' ? 'remetente' : 'passageiro'}
           </p>
           <div className="flex gap-2 mt-3">
             <input
@@ -295,14 +295,14 @@ export function DriverConsole({
               placeholder="4 números"
               inputMode="numeric"
               maxLength={4}
-              className="grow h-14 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-center text-2xl font-bold tracking-[0.4em] outline-none focus:border-purple-400"
+              className="grow h-14 rounded-control bg-white dark:bg-white/[0.06] border border-zinc-200 dark:border-white/15 text-center text-2xl font-bold tracking-[0.4em] text-ink dark:text-white outline-none focus:border-purple-500 dark:focus:border-amber-400"
             />
             <button
               onClick={verifyPin}
               disabled={busy || pin.length !== 4}
               className={cn(
-                'btn-main h-14 px-6 rounded-2xl font-bold',
-                (busy || pin.length !== 4) && OFF,
+                'h-14 px-6 rounded-control font-semibold',
+                busy || pin.length !== 4 ? OFF : 'btn-main',
               )}
             >
               {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirmar'}
@@ -323,9 +323,9 @@ export function DriverConsole({
       )}
 
       {trip.state === 'waiting_drop' && (
-        <div className="rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-5 shadow-sm">
-          <p className="flex items-center gap-2 text-xs font-bold text-zinc-500 dark:text-zinc-400">
-            <KeyRound className="w-4 h-4" /> Código de quem recebe a encomenda
+        <div className="surface-card rounded-card p-5">
+          <p className="flex items-center gap-2 text-caption font-semibold text-zinc-500 dark:text-zinc-400">
+            <KeyRound className="w-4 h-4 text-purple-600 dark:text-amber-400" /> Código de quem recebe a encomenda
           </p>
           <div className="flex gap-2 mt-3">
             <input
@@ -334,14 +334,14 @@ export function DriverConsole({
               placeholder="4 números"
               inputMode="numeric"
               maxLength={4}
-              className="grow h-14 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-center text-2xl font-bold tracking-[0.4em] outline-none focus:border-purple-400"
+              className="grow h-14 rounded-control bg-white dark:bg-white/[0.06] border border-zinc-200 dark:border-white/15 text-center text-2xl font-bold tracking-[0.4em] text-ink dark:text-white outline-none focus:border-purple-500 dark:focus:border-amber-400"
             />
             <button
               onClick={verifyDropPin}
               disabled={busy || pin.length !== 4}
               className={cn(
-                'btn-main h-14 px-6 rounded-2xl font-bold',
-                (busy || pin.length !== 4) && OFF,
+                'h-14 px-6 rounded-control font-semibold',
+                busy || pin.length !== 4 ? OFF : 'btn-main',
               )}
             >
               {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Entregue'}
@@ -359,27 +359,27 @@ export function DriverConsole({
       )}
 
       {done && (
-        <div className="rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-5 shadow-sm text-center">
+        <div className="surface-card rounded-card p-5 text-center">
           {cancelled ? (
             <>
               <XCircle className="w-8 h-8 text-zinc-400 mx-auto" />
-              <p className="font-bold text-zinc-900 dark:text-white mt-2">Corrida cancelada</p>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              <p className="font-semibold text-ink dark:text-white mt-2">Corrida cancelada</p>
+              <p className="text-label text-zinc-500 dark:text-zinc-400 mt-1">
                 Nada lhe foi cobrado. Cancelamentos repetidos pesam na sua candidatura.
               </p>
             </>
           ) : (
             <>
-              <CheckCircle2 className="w-8 h-8 text-purple-600 dark:text-purple-400 mx-auto" />
-              <p className="font-bold text-zinc-900 dark:text-white mt-2">Corrida concluída</p>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              <CheckCircle2 className="w-8 h-8 text-purple-600 dark:text-amber-400 mx-auto" />
+              <p className="font-semibold text-ink dark:text-white mt-2">Corrida concluída</p>
+              <p className="text-label text-zinc-500 dark:text-zinc-400 mt-1">
                 {trip.payment === 'cash'
                   ? `${formatKz(trip.driver_keeps_kz)} recebidos em dinheiro a bordo. A comissão da Elara (${formatKz(trip.commission_kz)}) acerta-se com a equipa.`
                   : `${formatKz(trip.driver_keeps_kz)} creditados na carteira.`}
               </p>
               {!trip.driver_rating && !score && (
-                <div className="mt-4 border-t border-zinc-100 dark:border-zinc-800 pt-4">
-                  <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">
+                <div className="mt-4 border-t border-zinc-200/70 dark:border-white/10 pt-4">
+                  <p className="text-label font-semibold text-ink dark:text-white">
                     Como foi {trip.kind === 'entrega' ? 'quem recebeu' : 'o passageiro'}?
                   </p>
                   <div className="mt-2 flex items-center justify-center gap-3">
@@ -389,16 +389,16 @@ export function DriverConsole({
                 </div>
               )}
               {(trip.driver_rating || score) && (
-                <div className="mt-4 flex items-center justify-center gap-2 border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                <div className="mt-4 flex items-center justify-center gap-2 border-t border-zinc-200/70 dark:border-white/10 pt-4">
                   <RateStars score={score ?? trip.driver_rating} busy={false} size="sm" />
-                  <span className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">A sua avaliação</span>
+                  <span className="text-caption font-medium text-zinc-500 dark:text-zinc-400">A sua avaliação</span>
                 </div>
               )}
             </>
           )}
           <button
             onClick={onFinished}
-            className="btn-main mt-4 w-full h-12 rounded-2xl font-bold"
+            className="btn-main mt-4 w-full h-12 rounded-control font-semibold"
           >
             Voltar à praça
           </button>
@@ -407,9 +407,9 @@ export function DriverConsole({
 
       {!done && ['accepted', 'arriving', 'waiting_pin'].includes(trip.state) && (
         askCancel ? (
-          <div className="rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 p-4">
-            <p className="font-bold text-red-700 dark:text-red-300">Cancelar esta corrida?</p>
-            <p className="text-sm text-red-700/80 dark:text-red-300/80 mt-1">
+          <div className="rounded-card bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 p-4">
+            <p className="font-semibold text-red-700 dark:text-red-300">Cancelar esta corrida?</p>
+            <p className="text-label text-red-700/85 dark:text-red-300/85 mt-1">
               {trip.state === 'accepted'
                 ? 'A pessoa ainda está à espera no ponto. Avise no chat antes de desistir.'
                 : 'Já está no ponto de partida: cancelando aqui, deixa a pessoa na rua.'}
@@ -417,12 +417,12 @@ export function DriverConsole({
             <div className="grid grid-cols-2 gap-2 mt-4">
               <button
                 onClick={() => setAskCancel(false)}
-                className="h-12 rounded-2xl font-bold text-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100"
+                className="surface-outline h-12 rounded-control font-semibold text-label text-ink dark:text-white"
               >Manter corrida</button>
               <button
                 onClick={doCancel}
                 disabled={busy}
-                className="h-12 rounded-2xl font-bold text-sm text-white bg-red-600 active:bg-red-700 flex items-center justify-center gap-2"
+                className="h-12 rounded-control font-semibold text-label text-white bg-red-600 active:bg-red-700 flex items-center justify-center gap-2"
               >
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />} Sim, cancelar
               </button>
@@ -432,7 +432,7 @@ export function DriverConsole({
           <button
             onClick={cancel}
             disabled={busy}
-            className="w-full h-12 rounded-2xl font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+            className="w-full h-12 rounded-control font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
           >
             <XCircle className="w-5 h-5" /> Cancelar corrida
           </button>
@@ -467,8 +467,8 @@ function Action({ onClick, busy, icon, children }: {
       onClick={onClick}
       disabled={busy}
       className={cn(
-        'btn-main w-full h-14 rounded-2xl font-bold tracking-tight text-lg flex items-center justify-center gap-2',
-        busy && OFF,
+        'w-full h-14 rounded-control font-semibold tracking-tight text-body flex items-center justify-center gap-2',
+        busy ? OFF : 'btn-main',
       )}
     >
       {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : icon}

@@ -52,7 +52,7 @@ const writeMark = (tripId: string, patch: Mark): Mark => {
   return next;
 };
 
-const BTN = 'h-12 rounded-2xl font-bold text-sm flex items-center gap-2 '
+const BTN = 'h-12 rounded-control font-semibold text-label flex items-center gap-2 '
   + 'justify-center active:scale-[0.98] transition-transform';
 
 interface RideCheckProps {
@@ -131,14 +131,14 @@ export function RideCheck({ trip, uid, onHelp }: RideCheckProps) {
       role="alert"
       aria-live="assertive"
       className={cn(
-        'animate-enter rounded-2xl border p-4 shadow-card',
+        'animate-enter rounded-card border p-4 shadow-card',
         'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900',
       )}
     >
-      <p className="flex items-center gap-2 font-bold text-red-700 dark:text-red-300">
+      <p className="flex items-center gap-2 font-semibold text-red-700 dark:text-red-300">
         <LifeBuoy className="w-5 h-5 shrink-0" /> Está tudo bem?
       </p>
-      <p className="text-sm text-red-700/85 dark:text-red-200/85 mt-1.5 leading-relaxed">
+      <p className="text-label text-red-700/85 dark:text-red-200/85 mt-1.5 leading-relaxed">
         A viagem {trip.code} já vai há {waitedMin} min — para {trip.distance_km} km
         estavam previstos ≈{driveMinutes(trip.distance_km)} min. Se apanhou
         trânsito, carregue em «Sim» e não voltamos a perguntar nesta viagem.
@@ -147,11 +147,7 @@ export function RideCheck({ trip, uid, onHelp }: RideCheckProps) {
       <div className="mt-3 grid grid-cols-2 gap-2">
         <button
           onClick={ok}
-          className={cn(
-            BTN,
-            'bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700',
-            'text-zinc-800 dark:text-zinc-100',
-          )}
+          className={cn(BTN, 'surface-outline text-ink dark:text-zinc-100')}
         >
           Sim, está tudo bem
         </button>

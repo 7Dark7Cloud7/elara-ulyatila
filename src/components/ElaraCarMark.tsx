@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { cn } from '../lib/utils';
 
 interface ElaraCarMarkProps {
@@ -25,43 +26,95 @@ interface ElaraCarMarkProps {
  * ----------------------------------------------------------------------------
  */
 export function ElaraCarMark({ dark, className }: ElaraCarMarkProps) {
-  const body = dark ? '#E7CFA6' : '#5A2FC2';       // amber-400 / purple-600
-  const glass = dark ? '#FBF1DE' : '#C9B4F3';      // amber-100 / purple-300
-  const badge = dark ? '#1B0B38' : '#FAF7F0';      // night / cream
-  const edge = dark ? '#E7CFA6' : '#4B27A4';       // amber-400 / purple-700
-  const wheel = dark ? '#E7CFA6' : '#2A1254';      // amber-400 / ink
-  const trim = dark ? '#1B0B38' : '#3C1B86';       // recorte de grelha / detalhe
+  const uid = useId().replace(/:/g, '');
+  const bodyGrad = `elara-body-${uid}`;
+  const glassGrad = `elara-glass-${uid}`;
+  const ringGrad = `elara-ring-${uid}`;
+
+  const bodyTop = dark ? '#F6E4C4' : '#7C5CE6';     // amber-200 / purple-500
+  const bodyBot = dark ? '#C89B68' : '#4B27A4';     // amber-600 / purple-700
+  const glassTop = dark ? '#FDF9F0' : '#E3D8FA';    // amber-50  / purple-200
+  const glassBot = dark ? '#E7CFA6' : '#A98FEA';    // amber-400 / purple-400
+  const badge = dark ? '#1B0B38' : '#FAF7F0';       // night     / cream
+  const ringA = dark ? '#FBF1DE' : '#7C5CE6';       // highlight ring
+  const ringB = dark ? '#A87B4A' : '#3A1C80';       // shadow ring
+  const wheel = dark ? '#C89B68' : '#2A1254';       // amber-600 / ink
+  const trim = dark ? '#1B0B38' : '#2A1254';        // grille / intake recess
+  const lamp = dark ? '#FDF9F0' : '#FAF7F0';        // crisp LED blade
   const mark = dark ? '/elara-mark-dark.png' : '/elara-mark.png';
 
   return (
     <svg viewBox="0 0 64 64" className={cn('block h-full w-full', className)} aria-hidden="true">
-      {/* retrovisores encostados aos pilares: dão leitura imediata de carro de frente */}
-      <rect x="6" y="25" width="7" height="4.5" rx="2.2" fill={body} />
-      <rect x="51" y="25" width="7" height="4.5" rx="2.2" fill={body} />
-      {/* rodas: cheias, assentes na mesma linha de chão */}
-      <rect x="7" y="45" width="11" height="11" rx="4.5" fill={wheel} />
-      <rect x="46" y="45" width="11" height="11" rx="4.5" fill={wheel} />
-      {/* carroçaria de frente: cabina limpa, ombros esculpidos e para-choques largo */}
+      <defs>
+        <linearGradient id={bodyGrad} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={bodyTop} />
+          <stop offset="100%" stopColor={bodyBot} />
+        </linearGradient>
+        <linearGradient id={glassGrad} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={glassTop} />
+          <stop offset="100%" stopColor={glassBot} />
+        </linearGradient>
+        <linearGradient id={ringGrad} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={ringA} />
+          <stop offset="100%" stopColor={ringB} />
+        </linearGradient>
+      </defs>
+
+      {/* sombra subtil sob o chassis para assentar o carro no emblema */}
+      <ellipse cx="32" cy="57.5" rx="24" ry="2.6" fill={trim} opacity={dark ? 0.35 : 0.16} />
+
+      {/* retrovisores aerodinâmicos encostados aos pilares A */}
+      <path d="M5.5 27.5 C5.5 25.5 7 24.5 9.5 24.5 H13.5 L12.5 29.5 H8 C6.4 29.5 5.5 28.8 5.5 27.5 Z" fill={`url(#${bodyGrad})`} />
+      <path d="M58.5 27.5 C58.5 25.5 57 24.5 54.5 24.5 H50.5 L51.5 29.5 H56 C57.6 29.5 58.5 28.8 58.5 27.5 Z" fill={`url(#${bodyGrad})`} />
+
+      {/* pneus largos e assentes na mesma linha de chão */}
+      <rect x="6.5" y="45" width="11" height="11.5" rx="4.2" fill={wheel} />
+      <rect x="46.5" y="45" width="11" height="11.5" rx="4.2" fill={wheel} />
+
+      {/* carroçaria esculpida de frente: tejadilho baixo, ombros firmes e guarda-lamas */}
       <path
-        d="M12 29 L16 17 C17.5 13.5 21 12 26 12 H38 C43 12 46.5 13.5 48 17 L52 29
-           L57 32 C59.5 33.5 60.5 35.5 60.5 38.5 V46 C60.5 49 58.5 51 55.5 51
-           H8.5 C5.5 51 3.5 49 3.5 46 V38.5 C3.5 35.5 4.5 33.5 7 32 Z"
-        fill={body}
+        d="M11.5 28.5 L15.8 16.5 C17.3 12.6 20.8 11 26 11 H38 C43.2 11 46.7 12.6 48.2 16.5 L52.5 28.5
+           L57.8 31.6 C60.2 33 61.2 35.4 61.2 38.4 V46.2 C61.2 49.4 59 51.5 55.8 51.5
+           H8.2 C5 51.5 2.8 49.4 2.8 46.2 V38.4 C2.8 35.4 3.8 33 6.2 31.6 Z"
+        fill={`url(#${bodyGrad})`}
       />
-      {/* pára-brisas inclinado com margem uniforme dentro do tejadilho */}
+
+      {/* linha de brilho subtil no topo do capô */}
       <path
-        d="M17.5 27.5 L20.5 18 C21.2 16.2 22.8 15.5 25.5 15.5 H38.5 C41.2 15.5 42.8 16.2 43.5 18 L46.5 27.5 Z"
-        fill={glass}
+        d="M14 29.5 Q32 27.2 50 29.5"
+        fill="none"
+        stroke={lamp}
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity={dark ? 0.55 : 0.35}
       />
-      {/* faróis LED inclinados: dão expressão moderna ao rosto do carro */}
-      <path d="M7.5 36.5 L16 38 L15 42 L7.5 41 Z" fill={glass} />
-      <path d="M56.5 36.5 L48 38 L49 42 L56.5 41 Z" fill={glass} />
-      {/* linha subtil do para-choques inferior */}
-      <rect x="21" y="45.5" width="22" height="2.5" rx="1.25" fill={trim} opacity="0.45" />
-      {/* emblema: círculo de contraste onde a marca Elara se senta */}
-      <circle cx="32" cy="36" r="13.2" fill={badge} stroke={edge} strokeWidth="2.4" />
+
+      {/* pára-brisas inclinado com reflexo diagonal de vidro */}
+      <path
+        d="M16.5 26.8 L19.8 17.5 C20.6 15.4 22.3 14.6 25.2 14.6 H38.8 C41.7 14.6 43.4 15.4 44.2 17.5 L47.5 26.8 Z"
+        fill={`url(#${glassGrad})`}
+      />
+      <path
+        d="M21 26.8 L26.5 14.6 H31.2 L25.7 26.8 Z"
+        fill="#FFFFFF"
+        opacity={dark ? 0.35 : 0.45}
+      />
+
+      {/* faróis LED de assinatura dupla, inclinados para o centro */}
+      <path d="M6.8 35.6 L16.4 37.8 L15.4 41.6 L6.8 40.2 Z" fill={lamp} opacity="0.95" />
+      <path d="M57.2 35.6 L47.6 37.8 L48.6 41.6 L57.2 40.2 Z" fill={lamp} opacity="0.95" />
+      <path d="M7.5 42.6 H14.5" stroke={lamp} strokeWidth="1.2" strokeLinecap="round" opacity="0.65" />
+      <path d="M49.5 42.6 H56.5" stroke={lamp} strokeWidth="1.2" strokeLinecap="round" opacity="0.65" />
+
+      {/* recorte de grelha inferior para dar profundidade ao pára-choques */}
+      <rect x="19" y="46.2" width="26" height="3" rx="1.5" fill={trim} opacity={dark ? 0.45 : 0.32} />
+
+      {/* medalhão central de anel duplo onde a bússola Elara assenta */}
+      <circle cx="32" cy="36.2" r="13.8" fill={badge} stroke={`url(#${ringGrad})`} strokeWidth="2.4" />
+      <circle cx="32" cy="36.2" r="11.4" fill="none" stroke={ringA} strokeWidth="0.7" opacity="0.45" />
+
       {/* assinatura Elara, recortada exactamente no conteúdo do PNG */}
-      <svg x="23" y="23" width="18" height="26" viewBox="31 17 98 126" preserveAspectRatio="xMidYMid meet">
+      <svg x="23" y="23.2" width="18" height="26" viewBox="31 17 98 126" preserveAspectRatio="xMidYMid meet">
         <image href={mark} x="0" y="0" width="160" height="160" />
       </svg>
     </svg>

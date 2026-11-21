@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, Gauge, ShieldAlert } from 'lucide-react';
+import { ClockIcon, GaugeIcon, SosShieldIcon } from '../components/ElaraIcons';
 import type { Driver, SessionUser, VehicleClass, Zone } from '../types';
 import { DriverFicha } from '../components/DriverFicha';
 import { DriverDashboard } from '../components/DriverDashboard';
@@ -38,7 +38,7 @@ export function DriverView({
   if (!user) {
     return (
       <Card
-        icon={<Gauge className="w-7 h-7" />}
+        icon={<GaugeIcon className="w-7 h-7" />}
         title="Trabalhar com a Elara"
         text="Entre na conta para começar a conduzir. A mesma conta do Elara serve aqui."
         action={<button onClick={onLogin} className={btnCls}>Entrar</button>}
@@ -57,7 +57,7 @@ export function DriverView({
   if (driver.status === 'pending') {
     return (
       <Card
-        icon={<Clock className="w-7 h-7" />}
+        icon={<ClockIcon className="w-7 h-7" />}
         title="Candidatura em análise"
         text={`A sua candidatura (${displayPlate(driver.plate)} · ${driver.model}) está com a equipa. Avisamos por aqui quando for aprovada.`}
         action={
@@ -72,7 +72,7 @@ export function DriverView({
   if (driver.status !== 'approved') {
     return (
       <Card
-        icon={<ShieldAlert className="w-7 h-7" />}
+        icon={<SosShieldIcon className="w-7 h-7" />}
         title={driver.status === 'suspended' ? 'Conta suspensa' : 'Conta banida'}
         text="Fale com o suporte da Elara para perceber o que aconteceu e como resolver."
         action={
@@ -118,16 +118,16 @@ function Card({ icon, title, text, action }: {
   icon: React.ReactNode; title: string; text: string; action?: React.ReactNode;
 }) {
   return (
-    <div className="animate-enter rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-8 text-center shadow-sm">
-      <div className="w-14 h-14 rounded-2xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center mx-auto">
+    <div className="animate-enter surface-card rounded-card p-8 text-center">
+      <div className="w-14 h-14 rounded-control bg-purple-100 dark:bg-amber-400/15 text-purple-700 dark:text-amber-300 flex items-center justify-center mx-auto">
         {icon}
       </div>
-      <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white mt-4">{title}</h2>
-      <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">{text}</p>
+      <h2 className="font-display text-xl font-medium tracking-tight text-ink dark:text-white mt-4">{title}</h2>
+      <p className="text-label text-zinc-600 dark:text-zinc-400 mt-2 leading-relaxed">{text}</p>
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
 const btnCls =
-  'btn-main w-full h-12 rounded-2xl font-bold flex items-center justify-center gap-2';
+  'btn-main w-full h-12 rounded-control font-semibold flex items-center justify-center gap-2';

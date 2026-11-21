@@ -1,4 +1,4 @@
-import { Clock } from 'lucide-react';
+import { ClockIcon } from './ElaraIcons';
 import type { Trip, TripKind, Zone } from '../types';
 import { cn } from '../lib/utils';
 
@@ -49,7 +49,7 @@ export function RecentPlaces({ items, activeZoneId, onPick }: RecentPlacesProps)
   return (
     <div className="space-y-2">
       <p className="flex items-center gap-1.5 text-label font-medium text-zinc-500 dark:text-zinc-400">
-        <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+        <ClockIcon className="w-3.5 h-3.5" />
         Onde foi da última vez
       </p>
       <div className="h-rail flex gap-2 overflow-x-auto">

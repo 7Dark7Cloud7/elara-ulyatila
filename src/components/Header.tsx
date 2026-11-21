@@ -1,5 +1,5 @@
-import { Moon, Sun } from 'lucide-react';
 import { Brand } from './Brand';
+import { MoonIcon, SunIcon } from './ElaraIcons';
 import { NavUserIcon } from './NavIcons';
 import { cn } from '../lib/utils';
 
@@ -27,7 +27,7 @@ export function Header({ dark, onToggleTheme, userName, onAccount }: HeaderProps
           aria-label={dark ? 'Modo claro' : 'Modo escuro'}
           className="tap-pad w-10 h-10 rounded-full flex items-center justify-center text-zinc-600 dark:text-zinc-300 active:bg-black/5 dark:active:bg-white/10 transition-colors"
         >
-          {dark ? <Sun className="w-[20px] h-[20px]" strokeWidth={1.8} /> : <Moon className="w-[20px] h-[20px]" strokeWidth={1.8} />}
+          {dark ? <SunIcon className="w-[20px] h-[20px]" /> : <MoonIcon className="w-[20px] h-[20px]" />}
         </button>
         <button
           onClick={onAccount}

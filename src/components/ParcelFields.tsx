@@ -1,4 +1,5 @@
-import { Package, Phone, User } from 'lucide-react';
+import { PackageIcon, PhoneIcon } from './ElaraIcons';
+import { NavUserIcon } from './NavIcons';
 import { cn } from '../lib/utils';
 
 interface ParcelFieldsProps {
@@ -26,7 +27,7 @@ export function ParcelFields({
     <div className="surface-card space-y-4 rounded-card p-4">
       <div className="flex items-center gap-2.5">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-purple-100 text-purple-700 dark:bg-amber-400/15 dark:text-amber-300">
-          <Package className="h-4 w-4" aria-hidden="true" />
+          <PackageIcon className="h-4 w-4" />
         </span>
         <div className="min-w-0">
           <p className="text-label font-semibold text-ink dark:text-white">
@@ -52,7 +53,7 @@ export function ParcelFields({
 
       <div className="space-y-2.5 rounded-control border border-zinc-200/80 p-3 dark:border-[rgba(185,168,220,0.18)]">
         <p className="eyebrow flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400">
-          <User className="h-3.5 w-3.5" aria-hidden="true" />
+          <NavUserIcon className="h-3.5 w-3.5" />
           {move ? 'Quem está no destino' : 'Quem recebe'}
         </p>
 
@@ -71,7 +72,7 @@ export function ParcelFields({
           <span className="text-label font-semibold text-zinc-600 dark:text-zinc-300">Telefone</span>
           <span className="flex items-stretch overflow-hidden rounded-control border border-zinc-200 bg-white focus-within:border-purple-400 dark:border-[rgba(185,168,220,0.3)] dark:bg-white/[0.07] dark:focus-within:border-amber-400">
             <span className="flex items-center gap-1 border-r border-zinc-200 px-3 text-control font-semibold text-zinc-600 dark:border-[rgba(185,168,220,0.25)] dark:text-zinc-300">
-              <Phone className="h-3.5 w-3.5" aria-hidden="true" /> +244
+              <PhoneIcon className="h-3.5 w-3.5" /> +244
             </span>
             <input
               type="tel"

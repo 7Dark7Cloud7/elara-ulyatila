@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Armchair, ArrowRight, ArrowUpDown, Banknote, Clock, CreditCard, Loader2, MapPin as MapPinIcon, Route, Share2, Users } from 'lucide-react';
+import {
+  ArrowRightIcon, CardIcon, CashIcon, ClockIcon, DemoFlaskIcon, PinIcon,
+  RouteIcon, SeatIcon, ShareIcon, SpinnerIcon, SwapVerticalIcon, UsersIcon,
+} from '../components/ElaraIcons';
 import { supabase, rpcError } from '../lib/supabase';
-import type { DeliveryClass, Pickup, Quote, SessionUser, Trip, VehicleClass, Zone } from '../types';
+import type { DeliveryClass, ParcelSize, Pickup, Quote, SessionUser, Trip, TripKind, VehicleClass, Zone } from '../types';
 import { ZonePicker } from '../components/ZonePicker';
 import { ClassPicker } from '../components/ClassPicker';
 import { SERVICE_HINT, ServiceGrid, type Service } from '../components/ServiceGrid';
@@ -19,12 +22,19 @@ import { SavedPlaces } from '../components/SavedPlaces';
 import { RecentPlaces, recentDestinations } from '../components/RecentPlaces';
 import type { MapCar, MapPin } from '../components/MapView';
 import { LUANDA, haversineKm } from '../lib/map';
-import { VehicleArt, vehicleKindFor } from '../components/VehicleArt';
 import { ParcelPicker } from '../components/ParcelPicker';
 import { distanceText, useDriverPresence, useFixFlash, useMyPosition, useNearbyDrivers, NEARBY_MAX_KM, type LatLon } from '../lib/geo';
 import { ridesLive, setPickup as pushPickup } from '../lib/rides';
 import { nameAt, usePlacesReady, type Place } from '../lib/places';
 import { deletePlace, fetchPlaces, placesLive, savePlace, type SavedPlace } from '../lib/extras';
+import {
+  loadLocalPlaces, mergeSavedPlaces, removeLocalPlace, saveLocalPlace, type RepeatTripSeed,
+} from '../lib/localExtras';
+import { useDemo } from '../lib/demoContext';
+import {
+  buildDemoNearbyCars, computeDemoQuote, createDemoTrip, demoDriverPosition,
+} from '../lib/demoEngine';
+import { ServiceArt } from '../components/ServiceArt';
 import { STATE_LABEL, greeting, hourTip } from '../lib/trips';
 import { cn, meters, OFF, OFF_ATTR } from '../lib/utils';
 import { formatKz } from '../lib/money';
@@ -39,6 +49,8 @@ interface RideViewProps {
   trips: Trip[];
   freshPins: { pin: string; dropPin?: string | null } | null;
   onLogin: () => void;
+  /** Liga o modo demonstração directamente na app real. */
+  onOpenDemo?: () => void;
   /** O chip "Alugar" leva ao ecrã de aluguer — é outra sala, não um tipo de viagem. */
   onOpenRentals: () => void;
   /** Mensagem de quem acabou de pedir — um lugar reservado não é um carro fechado. */
@@ -50,6 +62,9 @@ interface RideViewProps {
   /** Encomenda do Elara Marketplace trazida por ligação `#/encomenda/…`. */
   order: { seed: OrderSeed | null; loading: boolean; missing: boolean } | null;
   onOrderDismiss: () => void;
+  /** Semente de repetição vinda do histórico ou recibo. */
+  repeatSeed?: RepeatTripSeed | null;
+  onRepeatConsumed?: () => void;
 }
 
 type Kind = 'passageiro' | 'entrega';
@@ -69,8 +84,11 @@ const SERVICE_TITLE: Record<Service, string> = {
 
 export function RideView({
   user, zones, classes, deliveryClasses, activeTrip, trips, freshPins,
-  onLogin, onOpenRentals, onTripCreated, onRefreshTrips, onError, onSos, order, onOrderDismiss,
+  onLogin, onOpenDemo, onOpenRentals, onTripCreated, onRefreshTrips, onError, onSos, order, onOrderDismiss,
+  repeatSeed, onRepeatConsumed,
 }: RideViewProps) {
+  const demoCtx = useDemo();
+  const isDemo = !!demoCtx?.isDemo;
   const [service, setService] = useState<Service>('carro');
   // Uma encomenda ou uma mudança são viagens de carga para o servidor; a
   // diferença é só o que a pessoa vê e escolhe.
@@ -112,9 +130,11 @@ export function RideView({
   // da zona onde o ponto cai — mas o motorista lê «Shopping Vianodo» em vez de
   // «Luanda», que é a diferença entre parar à porta e dar três voltas.
   const [destPlace, setDestPlace] = useState<Place | null>(null);
-  // Os atalhos guardados (0005) vivem do lado da pessoa, não do servidor.
+  // Os atalhos guardados funcionam já neste telemóvel e juntam-se ao servidor quando a 0005 estiver activa.
   const [places, setPlaces] = useState<SavedPlace[]>([]);
+  const [placesServerLive, setPlacesServerLive] = useState(false);
   const [placeBusy, setPlaceBusy] = useState(false);
+  const [heroImgFailed, setHeroImgFailed] = useState(false);
   const uid = user?.uid ?? null;
   // Os milhares de nomes de lugar chegam ao aparelho um instante depois da
   // tela; esta bandeira é o que faz o bairro recalculado aparecer sozinho.
@@ -137,28 +157,65 @@ export function RideView({
     setOpen(true);
   }, [order?.seed]);
   useEffect(() => {
+    if (!uid || isDemo) { setRidesOn(false); return; }
     let alive = true;
-    // Volta a perguntar quando a pessoa entra: a primeira leitura é anónima e
-    // o servidor só responde a quem tem conta, por isso o quadro apareceria
-    // sempre desligado para quem abre a app sem estar ligado.
     ridesLive().then((v) => { if (alive) setRidesOn(v); });
     return () => { alive = false; };
-  }, [uid]);
+  }, [uid, isDemo]);
+
+  // Em modo demonstração, preenche logo uma rota real em Luanda para mostrar
+  // preço, mapa e carros prontos ao primeiro olhar — continuando 100% editável.
+  const demoSeededRef = useRef(false);
+  useEffect(() => {
+    if (!isDemo) { demoSeededRef.current = false; return; }
+    if (demoSeededRef.current || activeTrip || from || to || zones.length < 2) return;
+    demoSeededRef.current = true;
+    setFrom(zones.find((z) => z.id === 'd-talatona')?.id ?? zones[0].id);
+    setTo(zones.find((z) => z.id === 'd-ilha')?.id ?? zones[1].id);
+  }, [isDemo, activeTrip, from, to, zones]);
+
+  // Repetir uma viagem anterior num toque: carrega serviço, rota, categoria e pagamento.
+  const consumedRepeat = useRef<string | null>(null);
+  useEffect(() => {
+    if (!repeatSeed || consumedRepeat.current === repeatSeed.token) return;
+    consumedRepeat.current = repeatSeed.token;
+    setService(repeatSeed.service);
+    setBoardOpen(false);
+    setFrom(repeatSeed.fromZoneId);
+    setTo(repeatSeed.toZoneId);
+    setClassId(repeatSeed.classId);
+    setPayment(repeatSeed.payment);
+    if (repeatSeed.service === 'partilha') setPartySize(Math.max(2, repeatSeed.seats));
+    else setSeats(Math.max(1, repeatSeed.seats));
+    if (repeatSeed.parcelSize) setParcelSize(repeatSeed.parcelSize);
+    setAutoFrom(null);
+    setDestPlace(null);
+    setOpen(true);
+    onRepeatConsumed?.();
+  }, [repeatSeed, onRepeatConsumed]);
 
   useEffect(() => {
-    if (!uid) { setPlaces([]); return; }
+    if (!uid) { setPlaces([]); setPlacesServerLive(false); return; }
     let alive = true;
+    const local = loadLocalPlaces(uid);
+    setPlaces(local);
+    if (isDemo) {
+      setPlacesServerLive(false);
+      return;
+    }
     placesLive().then(async (live) => {
       if (!alive) return;
-      if (!live) { setPlaces([]); return; }
+      setPlacesServerLive(live);
+      if (!live) return;
       const rows = await fetchPlaces(uid);
-      if (alive) setPlaces(rows ?? []);
+      if (alive) setPlaces(mergeSavedPlaces(rows ?? [], loadLocalPlaces(uid)));
     });
     return () => { alive = false; };
-  }, [uid]);
+  }, [uid, isDemo]);
 
   const gps = useMyPosition();
-  const driverPos = useDriverPresence(activeTrip?.driver_id);
+  const liveDriverPos = useDriverPresence(isDemo ? null : activeTrip?.driver_id);
+  const driverPos = isDemo && activeTrip ? demoDriverPosition(activeTrip, zones) : liveDriverPos;
 
   const selectedClass = classes.find((c) => c.id === classId) ?? null;
   const selectedDelivery = deliveryClasses.find((d) => d.id === parcelSize) ?? null;
@@ -293,10 +350,14 @@ export function RideView({
   // Bolt fazem, e é a única coisa que diz à pessoa que o pedido não caiu no vazio.
   // A partir de um carro aceite, só mostramos o dele: os outros deixam de importar.
   const showNearby = !activeTrip || activeTrip.state === 'searching';
-  const nearby = useNearbyDrivers(center, !!user && showNearby);
+  const nearby = useNearbyDrivers(center, !!user && showNearby && !isDemo);
+  const effectiveNearbyCars = useMemo(
+    () => (isDemo ? (showNearby ? buildDemoNearbyCars(center) : []) : nearby.cars),
+    [isDemo, showNearby, center, nearby.cars],
+  );
   const cars = useMemo<MapCar[]>(
-    () => (showNearby ? nearby.cars.map((c) => ({ id: c.driver_id, at: { lat: c.lat, lon: c.lon } })) : []),
-    [nearby.cars, showNearby],
+    () => (showNearby ? effectiveNearbyCars.map((c) => ({ id: c.driver_id, at: { lat: c.lat, lon: c.lon } })) : []),
+    [effectiveNearbyCars, showNearby],
   );
 
   // O ponto de embarque: enquanto a viagem existe é uma coisa do servidor, antes
@@ -431,11 +492,26 @@ export function RideView({
     [fromZone, toZone],
   );
 
-  // O preço vem do servidor; uma resposta antiga nunca autoriza um pedido novo.
+  // O preço vem do servidor (ou do motor local quando o modo demonstração está activo).
   useEffect(() => {
     if (!quoteKey || !requestKey) return;
-    let alive = true;
     const [pClass, pFrom, pTo, pSeats, pKind, pParcel] = quoteKey.split('|');
+    if (isDemo) {
+      const value = computeDemoQuote({
+        classId: pClass,
+        fromZoneId: pFrom,
+        toZoneId: pTo,
+        seats: Number(pSeats),
+        kind: pKind as TripKind,
+        parcelSize: pParcel || null,
+        zones,
+        classes,
+        deliveryClasses,
+      });
+      setQuoteResult({ key: requestKey, value, failed: !value });
+      return;
+    }
+    let alive = true;
     supabase
       .rpc('tr_quote', {
         p_class_id: pClass, p_from_zone_id: pFrom, p_to_zone_id: pTo,
@@ -448,7 +524,7 @@ export function RideView({
         if (alive) setQuoteResult({ key: requestKey, value: null, failed: true });
       });
     return () => { alive = false; };
-  }, [quoteKey, requestKey]);
+  }, [quoteKey, requestKey, isDemo, zones, classes, deliveryClasses]);
 
   // — Viagem em curso: o mapa segue o carro, o painel manda na viagem ————
   if (activeTrip) {
@@ -490,7 +566,7 @@ export function RideView({
           picking ? (
             <FloatPill>
               <span className="flex items-center gap-2 text-[13px] font-semibold text-amber-800 dark:text-amber-300">
-                <MapPinIcon className="w-4 h-4" /> Toque no mapa, no sítio onde vai estar
+                <PinIcon className="w-4 h-4" /> Toque no mapa, no sítio onde vai estar
               </span>
             </FloatPill>
           ) : (
@@ -512,12 +588,12 @@ export function RideView({
               fromLabel={fromZone?.name ?? 'si'}
               classLabel={classes.find((c) => c.id === activeTrip.class_id)?.label ?? 'viagem'}
               kind={activeTrip.kind}
-              cars={nearby.cars.length}
+              cars={effectiveNearbyCars.length}
               radiusKm={nearby.radiusKm}
               maxRadiusKm={NEARBY_MAX_KM}
-              canWiden={nearby.canWiden}
+              canWiden={!isDemo && nearby.canWiden}
               onWiden={nearby.widen}
-              failed={nearby.failed}
+              failed={!isDemo && nearby.failed}
               onRetry={nearby.refresh}
             />
           </div>
@@ -585,8 +661,40 @@ export function RideView({
     if (!canSubmit || !user) return;
     setBusy(true);
     const parcel = kind === 'entrega'
-      ? { size: parcelSize, what: what.trim(), toName: toName.trim(), toPhone: toPhone.trim(), payBy }
+      ? { size: parcelSize as ParcelSize, what: what.trim(), toName: toName.trim(), toPhone: toPhone.trim(), payBy }
       : null;
+
+    if (isDemo && demoCtx && quote) {
+      let createdPins: { pin: string; dropPin?: string | null } = { pin: '4821', dropPin: null };
+      const destNote = destPlace && kind === 'passageiro'
+        ? `O meu destino é ${destPlace.name}${destPlace.parent ? ` (${destPlace.parent})` : ''}.`
+        : undefined;
+      demoCtx.setDemoState((prev) => {
+        const res = createDemoTrip(prev, {
+          quote,
+          kind,
+          payment,
+          parcel,
+          pickup,
+          landmark: kind === 'passageiro' ? landmark : undefined,
+          destNote,
+        });
+        createdPins = { pin: res.pin, dropPin: res.dropPin };
+        return res.state;
+      });
+      setLandmark('');
+      setDestPlace(null);
+      setBusy(false);
+      setWhat(''); setToName(''); setToPhone('');
+      const createdMsg = service === 'partilha'
+        ? `Carro demo pedido para ${quoteSeats} pessoas.`
+        : service === 'mudanca'
+          ? 'Mudança demo criada — acompanhe o trajecto no ecrã real.'
+          : 'Pedido demo criado — o motorista vai aceitar já a seguir.';
+      onTripCreated(createdPins, createdMsg);
+      return;
+    }
+
     const { data, error } = await supabase.rpc('tr_create_trip', {
       p_class_id: quoteClassId,
       p_from_zone_id: from,
@@ -648,22 +756,46 @@ export function RideView({
     onError('Esse atalho não tem zona associada. Escolha o destino na lista.');
   };
 
-  const addPlace = async (emoji: string) => {
+  const addPlace = async (emoji: string, customLabel?: string) => {
     if (!uid || !toZone || !to) return;
+    const label = (customLabel ?? toZone.name).trim() || toZone.name;
     setPlaceBusy(true);
+    if (!placesServerLive) {
+      const nextLocal = saveLocalPlace(uid, {
+        label,
+        emoji,
+        zone_id: to,
+        lat: toZone.lat,
+        lon: toZone.lon,
+        note: destPlace?.name ?? '',
+      });
+      setPlaces(nextLocal);
+      setPlaceBusy(false);
+      return;
+    }
     const msg = await savePlace({
       owner_id: uid,
-      label: toZone.name,
+      label,
       emoji,
       zone_id: to,
       lat: toZone.lat,
       lon: toZone.lon,
-      note: '',
+      note: destPlace?.name ?? '',
     });
-    if (msg) onError(msg);
-    else {
+    if (msg) {
+      const nextLocal = saveLocalPlace(uid, {
+        label,
+        emoji,
+        zone_id: to,
+        lat: toZone.lat,
+        lon: toZone.lon,
+        note: destPlace?.name ?? '',
+      });
+      setPlaces((prev) => mergeSavedPlaces(prev.filter((p) => !p.id.startsWith('local-')), nextLocal));
+      onError('Guardado neste telemóvel (o servidor não respondeu).');
+    } else {
       const rows = await fetchPlaces(uid);
-      setPlaces(rows ?? []);
+      setPlaces(mergeSavedPlaces(rows ?? [], loadLocalPlaces(uid)));
     }
     setPlaceBusy(false);
   };
@@ -671,6 +803,12 @@ export function RideView({
   const removePlace = async (id: string) => {
     if (!uid) return;
     setPlaceBusy(true);
+    if (!placesServerLive || id.startsWith('local-')) {
+      const nextLocal = removeLocalPlace(uid, id);
+      setPlaces((prev) => mergeSavedPlaces(prev.filter((p) => !p.id.startsWith('local-') && p.id !== id), nextLocal));
+      setPlaceBusy(false);
+      return;
+    }
     const msg = await deletePlace(id);
     if (msg) onError(msg);
     else setPlaces((prev) => prev.filter((p) => p.id !== id));
@@ -699,7 +837,7 @@ export function RideView({
 
   const payRow = (
     <div className="grid grid-cols-2 gap-2">
-      {([['cash', 'Dinheiro', Banknote], ['multicaixa', 'Multicaixa', CreditCard]] as const).map(([id, label, Icon]) => (
+      {([['cash', 'Dinheiro', CashIcon], ['multicaixa', 'Multicaixa', CardIcon]] as const).map(([id, label, Icon]) => (
         <button
           key={id}
           onClick={() => setPayment(id)}
@@ -711,7 +849,7 @@ export function RideView({
               : 'surface-outline text-zinc-600 dark:text-zinc-200',
           )}
         >
-          <Icon className="w-4 h-4" aria-hidden="true" /> {label}
+          <Icon className="w-4 h-4" /> {label}
         </button>
       ))}
     </div>
@@ -771,8 +909,8 @@ export function RideView({
         )}
       >
         {busy || quoting
-          ? <Loader2 className="w-5 h-5 shrink-0 animate-spin" aria-hidden="true" />
-          : kind === 'passageiro' ? <Route className="w-5 h-5 shrink-0" aria-hidden="true" /> : <Banknote className="w-5 h-5 shrink-0" aria-hidden="true" />}
+          ? <SpinnerIcon className="w-5 h-5 shrink-0 animate-spin" />
+          : kind === 'passageiro' ? <RouteIcon className="w-5 h-5 shrink-0" /> : <CashIcon className="w-5 h-5 shrink-0" />}
         {busy ? 'A enviar pedido…' : quoting ? 'A calcular preço…' : quote
           ? `${ctaVerb} · ${formatKz(quote.priceKz)}`
           : ctaVerb}
@@ -799,11 +937,18 @@ export function RideView({
       top={user ? (picking ? (
         <FloatPill>
           <span className="flex items-center gap-2 text-[13px] font-semibold text-amber-800 dark:text-amber-300">
-            <MapPinIcon className="w-4 h-4" /> Toque no mapa, no sítio onde vai estar
+            <PinIcon className="w-4 h-4" /> Toque no mapa, no sítio onde vai estar
           </span>
         </FloatPill>
       ) : (
-        <NearbyPill cars={nearby.cars} gps={gps.status} loading={nearby.loading} failed={nearby.failed} onAskGps={locate} onRetry={nearby.refresh} />
+        <NearbyPill
+          cars={effectiveNearbyCars}
+          gps={gps.status}
+          loading={!isDemo && nearby.loading}
+          failed={!isDemo && nearby.failed}
+          onAskGps={locate}
+          onRetry={nearby.refresh}
+        />
       )) : null}
       actions={<LocateFab onClick={locate} gps={gps.status} justFixed={justFixed} />}
     >
@@ -820,15 +965,20 @@ export function RideView({
           <button
             type="button"
             onClick={onLogin}
-            className="w-full min-h-14 rounded-card border border-zinc-200 bg-white px-3 py-2.5 shadow-card flex items-center gap-3 text-left transition-all hover:border-purple-300 active:scale-[0.99] dark:border-[rgba(185,168,220,0.3)] dark:bg-white/[0.07] dark:hover:border-amber-400/50"
+            className="surface-card w-full min-h-14 rounded-card px-3 py-2.5 flex items-center gap-3 text-left transition-all hover:border-purple-300 active:scale-[0.99] dark:hover:border-amber-400/50"
           >
             <span className="flex h-10 w-12 shrink-0 items-center justify-center rounded-[11px] bg-zinc-100/90 px-1 dark:bg-white/[0.10]">
-              <img
-                src="/icons-3d/carro.png"
-                alt=""
-                aria-hidden="true"
-                className="h-8 w-auto object-contain"
-              />
+              {heroImgFailed ? (
+                <ServiceArt id="carro" className="h-8 w-10" />
+              ) : (
+                <img
+                  src="/icons-3d/carro.png"
+                  alt=""
+                  aria-hidden="true"
+                  onError={() => setHeroImgFailed(true)}
+                  className="h-8 w-auto object-contain"
+                />
+              )}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-semibold text-ink dark:text-white">
@@ -839,16 +989,27 @@ export function RideView({
               </span>
             </span>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink text-white dark:bg-amber-400 dark:text-ink">
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              <ArrowRightIcon className="h-4 w-4" />
             </span>
           </button>
           <ServiceGrid value={null} onPick={onLogin} onRent={onLogin} />
-          <button
-            onClick={onLogin}
-            className="w-full h-14 rounded-card font-semibold text-control btn-main flex items-center justify-center gap-2"
-          >
-            <Route className="w-5 h-5" aria-hidden="true" /> Entrar na minha conta
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={onLogin}
+              className="w-full h-14 rounded-card font-semibold text-control btn-main flex items-center justify-center gap-2"
+            >
+              <RouteIcon className="w-5 h-5" /> Entrar na minha conta
+            </button>
+            {onOpenDemo && (
+              <button
+                type="button"
+                onClick={onOpenDemo}
+                className="surface-outline flex h-12 w-full items-center justify-center gap-2 rounded-card text-label font-semibold text-purple-700 dark:text-amber-300"
+              >
+                <DemoFlaskIcon className="h-4 w-4" /> Explorar app completa em modo demonstração
+              </button>
+            )}
+          </div>
           <p className="text-center text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
             O mesmo acesso do Elara. Não pedimos senha por mensagem.
           </p>
@@ -866,7 +1027,7 @@ export function RideView({
                 {SERVICE_TITLE[service]}
               </h1>
             </div>
-            <Clock className="mt-1 h-4 w-4 shrink-0 text-purple-600 dark:text-amber-400" aria-hidden="true" />
+            <ClockIcon className="mt-1 h-4 w-4 shrink-0 text-purple-600 dark:text-amber-400" />
           </div>
 
           <p className="eyebrow text-zinc-500 dark:text-[#B9A8DC]">Serviços</p>
@@ -914,7 +1075,7 @@ export function RideView({
                   }}
                   className="tap-pad absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-purple-700 shadow-hair transition-transform active:scale-95 dark:border-[rgba(185,168,220,0.3)] dark:bg-night dark:text-amber-300"
                 >
-                  <ArrowUpDown className="h-3.5 w-3.5" aria-hidden="true" />
+                  <SwapVerticalIcon className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
@@ -961,16 +1122,16 @@ export function RideView({
             <p className="text-label text-zinc-600 dark:text-zinc-400">Partida sugerida pelo GPS. Confirme o ponto de encontro.</p>
           )}
 
-          {/* Os atalhos só aparecem com a migração 0005 aplicada. Sem ela a
-              fila não existe — não há lista vazia nem botão que falha. */}
-          {!!places.length && (
+          {/* Atalhos favoritos (Casa, Trabalho, etc.): funcionam de imediato neste telemóvel e juntam-se ao servidor quando disponível. */}
+          {kind === 'passageiro' && (places.length > 0 || !!toZone) && (
             <SavedPlaces
               places={places}
-              targetZoneId={kind === 'passageiro' ? to : null}
-              targetLabel={kind === 'passageiro' ? (toZone?.name ?? null) : null}
+              targetZoneId={to}
+              targetLabel={toZone?.name ?? null}
               busy={placeBusy}
+              localOnly={!placesServerLive}
               onPick={pickPlace}
-              onSave={({ emoji }) => void addPlace(emoji)}
+              onSave={({ emoji, label }) => void addPlace(emoji, label)}
               onRemove={(id) => void removePlace(id)}
             />
           )}
@@ -978,18 +1139,18 @@ export function RideView({
           {/* Sem 0004 não há campo de ponto na viagem: o referência vai para o
               chat assim que a viagem nasce, e dizemo-lo aqui, antes do toque. */}
           {!ridesOn && kind === 'passageiro' && (
-            <label className="block rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 px-3 py-2.5">
-              <span className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
-                <MapPinIcon className="w-3.5 h-3.5" /> Ponto de referência (opcional)
+            <label className="surface-card block rounded-card px-3.5 py-2.5">
+              <span className="flex items-center gap-1.5 text-caption font-medium text-zinc-500 dark:text-zinc-400">
+                <PinIcon className="w-3.5 h-3.5 text-purple-600 dark:text-amber-400" /> Ponto de referência (opcional)
               </span>
               <input
                 value={landmark}
                 onChange={(e) => setLandmark(e.target.value)}
                 maxLength={90}
                 placeholder="Ex: portão do condomínio, em frente à farmácia"
-                className="mt-1.5 w-full bg-transparent text-control font-semibold text-zinc-900 dark:text-white outline-none placeholder:font-medium placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
+                className="mt-1.5 w-full bg-transparent text-control font-semibold text-ink dark:text-white outline-none placeholder:font-medium placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
               />
-              <span className="block mt-1 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+              <span className="block mt-1 text-caption text-zinc-500 dark:text-zinc-400">
                 {landmark.trim()
                   ? 'Segue como primeira mensagem do chat quando a viagem for criada.'
                   : 'Ajuda o motorista a encontrá-la sem telefonemas.'}
@@ -1062,7 +1223,7 @@ export function RideView({
                     onClick={() => setBoardOpen(true)}
                     className="mt-2.5 flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-purple-300 bg-purple-50 text-label font-semibold text-purple-700 dark:border-amber-400/40 dark:bg-amber-400/[0.12] dark:text-amber-200"
                   >
-                    <Armchair className="h-4 w-4" aria-hidden="true" /> Já há carrinhas a partir — comprar um lugar
+                    <SeatIcon className="h-4 w-4" /> Já há carrinhas a partir — comprar um lugar
                   </button>
                 )}
               </div>
@@ -1104,7 +1265,7 @@ export function RideView({
               <div className="surface-card rounded-card p-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-2 text-body font-semibold text-ink dark:text-white">
-                    <Users className="h-4 w-4 text-purple-600 dark:text-amber-400" aria-hidden="true" /> Quantos vão?
+                    <UsersIcon className="h-4 w-4 text-purple-600 dark:text-amber-400" /> Quantos vão?
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -1145,7 +1306,7 @@ export function RideView({
                     OFF_ATTR,
                   )}
                 >
-                  <Share2 className="h-4 w-4" aria-hidden="true" /> Convidar quem vai para o mesmo lado
+                  <ShareIcon className="h-4 w-4" /> Convidar quem vai para o mesmo lado
                 </button>
               </div>
             )}
@@ -1153,7 +1314,7 @@ export function RideView({
             {perSeat && (
               <div className="surface-card rounded-card p-3 flex items-center justify-between">
                 <span className="flex items-center gap-2 text-body font-semibold text-ink dark:text-white">
-                  <Users className="w-4 h-4 text-purple-600 dark:text-amber-400" aria-hidden="true" /> Lugares
+                  <UsersIcon className="w-4 h-4 text-purple-600 dark:text-amber-400" /> Lugares
                 </span>
                 <div className="flex items-center gap-2">
                   <button
