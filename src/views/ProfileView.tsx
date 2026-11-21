@@ -96,7 +96,7 @@ export function ProfileView({
             <p className="mt-1 text-label text-zinc-500 dark:text-zinc-400">
               A mesma conta serve o Elara Marketplace e a Ulyatila.
             </p>
-            <button onClick={onLogin} className="btn-main mt-3 h-12 w-full rounded-control text-body font-semibold">
+            <button type="button" onClick={onLogin} className="btn-main mt-3 h-12 w-full rounded-control text-body font-semibold">
               Entrar na minha conta
             </button>
           </div>

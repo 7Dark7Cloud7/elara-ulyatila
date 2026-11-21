@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   CarFrontIcon, CloseIcon, DemoFlaskIcon, KeyIcon, PinIcon, SearchIcon, SpinnerIcon, StarIcon,
 } from './ElaraIcons';
@@ -293,7 +293,20 @@ export function RentalsSheet({
 
               {!loading && panel === 'mine' && (
                 mine.length === 0 ? (
-                  <Empty title="Sem pedidos enviados" text="Escolha um carro na aba «Carros» e envie o pedido ao dono." />
+                  <Empty
+                    art={
+                      <span className="service-stage relative mx-auto mb-2 flex h-[84px] w-[124px] items-center justify-center overflow-hidden rounded-card">
+                        <img
+                          src="/icons-3d/alugar.png"
+                          alt=""
+                          aria-hidden="true"
+                          className="relative z-10 h-[68px] w-auto object-contain"
+                        />
+                      </span>
+                    }
+                    title="Sem pedidos enviados"
+                    text="Escolha um carro na aba «Carros» e envie o pedido ao dono."
+                  />
                 ) : (
                   <div className="space-y-2.5 mt-3">
                     {mine.map((q) => (
@@ -361,9 +374,9 @@ const Badge = ({ children }: { children: React.ReactNode }) => (
   </span>
 );
 
-const Empty = ({ title, text }: { title: string; text: string }) => (
+const Empty = ({ title, text, art }: { title: string; text: string; art?: ReactNode }) => (
   <div className="rounded-card border border-dashed border-zinc-300 dark:border-white/20 p-6 text-center mt-3">
-    <CarFrontIcon className="w-7 h-7 text-zinc-400 dark:text-zinc-500 mx-auto" />
+    {art ?? <CarFrontIcon className="w-7 h-7 text-zinc-400 dark:text-zinc-500 mx-auto" />}
     <p className="font-semibold text-ink dark:text-white mt-2">{title}</p>
     <p className="text-label text-zinc-500 dark:text-zinc-400 mt-1">{text}</p>
   </div>

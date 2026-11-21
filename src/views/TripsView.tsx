@@ -95,7 +95,22 @@ export function TripsView({
   }
 
   if (loading) {
-    return <p className="py-16 text-center text-label text-zinc-500 dark:text-zinc-400">a carregar…</p>;
+    // Lugar marcado com a altura do que vem: a lista não salta quando os
+    // cartões entram, e a Ligação fraca vê-se a trabalhar em vez de um vazio.
+    return (
+      <div className="animate-enter space-y-4 pb-8" role="status" aria-label="A carregar as suas viagens">
+        <div>
+          <p className="eyebrow text-purple-700 dark:text-amber-400">O seu caminho</p>
+          <h1 className="mt-1 font-display text-title font-medium leading-tight text-ink dark:text-white">
+            Viagens
+          </h1>
+        </div>
+        <div className="h-[88px] rounded-card bg-zinc-100 dark:bg-white/[0.06]" />
+        <div className="h-[52px] rounded-card bg-zinc-100 dark:bg-white/[0.06]" />
+        <div className="h-[116px] rounded-card bg-zinc-100 dark:bg-white/[0.06]" />
+        <div className="h-[116px] rounded-card bg-zinc-100 dark:bg-white/[0.06]" />
+      </div>
+    );
   }
 
   const active = trips.filter((t) => isTripActive(t));

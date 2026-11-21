@@ -34,6 +34,26 @@ const DIR_FILTERS: Array<{ id: WalletDirectionFilter; label: string }> = [
   { id: 'out', label: 'Saídas' },
 ];
 
+/** O que a carteira faz, dito antes de haver conta — três gestos, sem promessas
+ *  que a operação ainda não cumpra (o saldo só muda com confirmação da equipa). */
+const WALLET_PERKS: Array<{ Icon: typeof TopUpIcon; title: string; text: string }> = [
+  {
+    Icon: TopUpIcon,
+    title: 'Recarregar em kwanzas',
+    text: 'Multicaixa Express, transferência ou agente — o saldo entra quando a equipa confirma.',
+  },
+  {
+    Icon: ReceiptIcon,
+    title: 'Um recibo por viagem',
+    text: 'Preço, código e avaliação ficam guardados, prontos a partilhar.',
+  },
+  {
+    Icon: WithdrawIcon,
+    title: 'Levantar quando quiser',
+    text: 'Peça a transferência para a sua conta; sem filas e sem letra pequena.',
+  },
+];
+
 /**
  * A carteira: o saldo só muda quando alguém da equipa confirma o dinheiro que
  * realmente entrou ou saiu. Recarregar aqui é um pedido, não um clique mágico.
@@ -115,6 +135,25 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
           text="Entre na conta para acompanhar o saldo das corridas, pedir recargas e levantamentos em Kwanzas."
           action={<button type="button" onClick={onLogin} className={btnCls}>Entrar na minha conta</button>}
         />
+
+        {/* Sem sessão não há números para mostrar; mostramos o que a carteira
+            faz. É a diferença entre um ecrã fechado e uma porta com placa. */}
+        <section className="surface-card rounded-card p-4" aria-label="O que a carteira faz">
+          <p className="eyebrow text-zinc-500 dark:text-[#B9A8DC]">O que a carteira faz</p>
+          <ul className="mt-3 space-y-3">
+            {WALLET_PERKS.map(({ Icon, title, text }) => (
+              <li key={title} className="flex items-start gap-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-purple-100 text-purple-700 dark:bg-amber-400/15 dark:text-amber-300">
+                  <Icon className="h-[18px] w-[18px]" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-body font-semibold text-ink dark:text-white">{title}</span>
+                  <span className="mt-0.5 block text-label leading-snug text-zinc-500 dark:text-zinc-400">{text}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
     );
   }
@@ -329,6 +368,7 @@ export function WalletView({ user, onLogin, onError }: WalletViewProps) {
 
       {!loading && visibleTxs.length === 0 && (
         <Empty
+          icon={<ReceiptIcon className="h-6 w-6" />}
           title={txs.length === 0 ? 'Sem movimentos' : 'Nada neste filtro'}
           text={txs.length === 0
             ? 'As corridas que fechar e as recargas confirmadas aparecem aqui, com o saldo a seguir a cada movimento.'
