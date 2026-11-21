@@ -95,6 +95,9 @@ export function MapView(props: MapViewProps) {
   const darkRef = useRef(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  /** Uma falha do mapa pode ser passageira (WebGL ocupado, rede a cair):
+   *  mudar este número remonta o arranque sem recarregar a página. */
+  const [attempt, setAttempt] = useState(0);
 
   const dark = useTheme();
   darkRef.current = dark;
@@ -273,6 +276,8 @@ export function MapView(props: MapViewProps) {
   // — Arranque ——————————————————————————————————————————————————————————————
   useEffect(() => {
     let disposed = false;
+    setFailed(false);
+    setReady(false);
     loadMapLibre()
       .then((lib) => {
         if (disposed || !hostRef.current) return;
@@ -308,7 +313,7 @@ export function MapView(props: MapViewProps) {
       mapRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [attempt]);
 
   // Tema: trocar o estilo deita as camadas que são nossas; o styledata traz-as de volta.
   useEffect(() => {
@@ -439,7 +444,7 @@ export function MapView(props: MapViewProps) {
   }, [follow, ready]);
 
   return (
-    <div className={cn('relative h-full w-full overflow-hidden bg-[#EDE6FA] dark:bg-[#22103F]', className)}>
+    <div className={cn('map-canvas relative h-full w-full overflow-hidden bg-[#EDE6FA] dark:bg-[#22103F]', className)}>
       {/* h-full/w-full e não inset-0: o CSS do MapLibre põe position:relative no
           contentor depois de nós, e um contentor relativo sem altura dá um
           mapa de 0 px. */}
@@ -459,6 +464,13 @@ export function MapView(props: MapViewProps) {
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             É um extra: continue a pedir a sua viagem normalmente.
           </p>
+          <button
+            type="button"
+            onClick={() => setAttempt((n) => n + 1)}
+            className="surface-outline mt-2 inline-flex h-11 items-center justify-center gap-1.5 rounded-control px-4 text-label font-semibold text-purple-700 dark:text-amber-300"
+          >
+            Tentar abrir o mapa
+          </button>
         </div>
       )}
     </div>

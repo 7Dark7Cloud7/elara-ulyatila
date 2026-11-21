@@ -219,7 +219,7 @@ export function AuthSheet({ open, onClose, onDone, onError, onOpenDemo }: AuthSh
             <button
               type="button"
               onClick={forgot}
-              className="text-label font-semibold text-purple-600 dark:text-amber-400"
+              className="tap-pad text-label font-semibold text-purple-600 dark:text-amber-400"
             >
               Recuperar palavra-passe
             </button>

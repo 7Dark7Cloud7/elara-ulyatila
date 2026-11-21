@@ -193,6 +193,21 @@
   .dark .service-stage::after {
     background: rgba(0, 0, 0, 0.45);
   }
+
+  /* Antes das primeiras teselas o mapa é só um rectângulo de cor. Uma grelha
+     fina na paleta da casa diz «aqui vem um mapa» sem inventar ruas que não
+     existem — e continua a servir de fundo se a ligação falhar. */
+  .map-canvas {
+    background-image:
+      linear-gradient(rgba(124, 92, 230, 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124, 92, 230, 0.07) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  .dark .map-canvas {
+    background-image:
+      linear-gradient(rgba(231, 207, 166, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(231, 207, 166, 0.08) 1px, transparent 1px);
+  }
 }
 
 @layer utilities {
