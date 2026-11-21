@@ -212,7 +212,7 @@ export function HelpSheet({ open, onClose, isDriver, onOpenData }: HelpSheetProp
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="text-label font-semibold text-purple-600 dark:text-amber-400"
+              className="tap-pad text-label font-semibold text-purple-600 dark:text-amber-400"
             >
               Limpar pesquisa
             </button>
@@ -224,6 +224,7 @@ export function HelpSheet({ open, onClose, isDriver, onOpenData }: HelpSheetProp
               return (
                 <div key={it.id}>
                   <button
+                    type="button"
                     onClick={() => setWide(on ? null : it.id)}
                     aria-expanded={on}
                     className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left active:bg-zinc-50 dark:active:bg-white/[0.05]"
