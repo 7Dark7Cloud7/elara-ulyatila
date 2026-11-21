@@ -178,6 +178,9 @@ export function pinMarkerEl(label: string, tone: 'from' | 'to' | 'pick', scan = 
         : 'text-zinc-800 dark:text-zinc-100',
   ].join(' ');
   chip.textContent = label;
+  // O nome pode ser longo («Aeroporto 4 de Fevereiro»). O título não custa
+  // nada e diz o nome inteiro a quem usa rato; o pin continua curto no mapa.
+  chip.title = label;
   el.appendChild(chip);
 
   const icon = document.createElement('span');
@@ -212,6 +215,7 @@ export function bubbleEl(text: string, active: boolean): HTMLElement {
       : 'bg-white/95 dark:bg-zinc-900/95 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white',
   ].join(' ');
   el.textContent = text;
+  el.setAttribute('aria-label', `Escolher proposta de ${text}`);
   return el;
 }
 
