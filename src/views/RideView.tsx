@@ -840,6 +840,7 @@ export function RideView({
       {([['cash', 'Dinheiro', CashIcon], ['multicaixa', 'Multicaixa', CardIcon]] as const).map(([id, label, Icon]) => (
         <button
           key={id}
+          type="button"
           onClick={() => setPayment(id)}
           aria-pressed={payment === id}
           className={cn(

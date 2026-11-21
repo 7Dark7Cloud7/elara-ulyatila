@@ -456,7 +456,7 @@ export function DemoStudio({ open, zones, classes, onClose, onExit }: DemoStudio
                           key={rp.label}
                           type="button"
                           onClick={() => { setFrom(rp.a); setTo(rp.b); }}
-                          className="h-9 rounded-full surface-outline px-3 text-caption font-semibold text-zinc-700 dark:text-zinc-200"
+                          className="h-11 rounded-full surface-outline px-3 text-caption font-semibold text-zinc-700 dark:text-zinc-200"
                         >
                           {rp.label}
                         </button>
@@ -912,7 +912,7 @@ function LiveTrip({
                       key={qr.id}
                       type="button"
                       onClick={() => onSendQuick(qr.id, qr.text)}
-                      className="h-9 rounded-full surface-outline px-3 text-caption font-semibold text-purple-700 dark:text-amber-300"
+                      className="h-11 rounded-full surface-outline px-3 text-caption font-semibold text-purple-700 dark:text-amber-300"
                     >
                       {qr.label}
                     </button>
@@ -978,7 +978,7 @@ function LiveTrip({
                           aria-pressed={on}
                           onClick={() => onToggleCompliment(c.id)}
                           className={cn(
-                            'h-9 rounded-full border px-3 text-caption font-semibold transition-colors',
+                            'h-11 rounded-full border px-3 text-caption font-semibold transition-colors',
                             on
                               ? 'border-purple-600 bg-purple-600 text-white dark:border-amber-400 dark:bg-amber-400 dark:text-ink'
                               : 'surface-outline',

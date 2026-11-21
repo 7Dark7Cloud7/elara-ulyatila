@@ -62,14 +62,14 @@ export function RecentPlaces({ items, activeZoneId, onPick }: RecentPlacesProps)
               onClick={() => onPick(r.zoneId)}
               aria-pressed={on}
               className={cn(
-                'shrink-0 h-10 rounded-full px-3 flex items-center gap-1.5 border text-[13px] font-semibold',
+                'shrink-0 h-11 rounded-full px-3 flex items-center gap-1.5 border text-[13px] font-semibold',
                 'transition-colors active:bg-zinc-100 dark:active:bg-zinc-700',
                 on
                   ? 'bg-purple-600 dark:bg-purple-400 border-transparent text-white dark:text-purple-950'
                   : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-100',
               )}
             >
-              <span className="max-w-[132px] truncate">{r.name}</span>
+              <span title={r.name} className="max-w-[132px] truncate">{r.name}</span>
               {r.count > 1 && (
                 <span className={cn('text-[11px] font-bold', on ? 'opacity-80' : 'text-zinc-500 dark:text-zinc-400')}>
                   {r.count}×

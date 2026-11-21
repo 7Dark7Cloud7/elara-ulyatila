@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { haversineKm } from './map';
 import type { Zone } from '../types';
 
@@ -102,9 +102,15 @@ let DOC_DATE = '';
 let cache: { key: Zone[]; places: Place[]; folds: string[][] } | null = null;
 const landed = new Set<() => void>();
 let fetching: Promise<void> | null = null;
+/** O bloco de nomes é grande; se a rede o deixar pelo caminho, dizemos isso
+ *  em vez de deixar a pesquisa «A carregar…» para sempre. */
+let loadFailed = false;
 
 /** A data em que os nomes foram conferidos no OSM; vazia até o índice chegar. */
 export const dataDate = (): string => DOC_DATE;
+
+/** Verdade quando a última tentativa de trazer os nomes falhou. */
+export const placesFailed = (): boolean => loadFailed;
 
 const placesReady = (): boolean => OSM.length > 0;
 
@@ -121,24 +127,37 @@ export function ensurePlaces(): Promise<void> {
       OSM = doc.places ?? [];
       DOC_DATE = doc.fetched_at ?? '';
       cache = null;
+      loadFailed = false;
       fetching = null;
       landed.forEach((cb) => cb());
-    }, () => { fetching = null; });
+    }, () => {
+      fetching = null;
+      loadFailed = true;
+      landed.forEach((cb) => cb());
+    });
   }
   return fetching;
 }
 
-/** Verdade quando o índice está no aparelho; faz o componente renderizar de novo. */
-export function usePlacesReady(): boolean {
-  const [on, setOn] = useState(placesReady);
+/** Estado do índice para a interface: chegou, falhou, e tentar de novo. */
+export function usePlacesState(): { ready: boolean; failed: boolean; retry: () => void } {
+  const [state, setState] = useState(() => ({ ready: placesReady(), failed: placesFailed() }));
   useEffect(() => {
-    if (on) return;
-    const cb = () => setOn(true);
+    const cb = () => setState({ ready: placesReady(), failed: placesFailed() });
     landed.add(cb);
     void ensurePlaces();
     return () => { landed.delete(cb); };
-  }, [on]);
-  return on;
+  }, []);
+  const retry = useCallback(() => {
+    setState((s) => ({ ...s, failed: false }));
+    void ensurePlaces();
+  }, []);
+  return { ...state, retry };
+}
+
+/** Verdade quando o índice está no aparelho; faz o componente renderizar de novo. */
+export function usePlacesReady(): boolean {
+  return usePlacesState().ready;
 }
 
 /**

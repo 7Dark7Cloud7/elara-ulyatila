@@ -159,7 +159,7 @@ export function TrustedContacts({ onChanged, onNotify }: TrustedContactsProps) {
                 aria-pressed={relation === rel}
                 onClick={() => setRelation(rel)}
                 className={cn(
-                  'h-9 rounded-full border px-3 text-label font-semibold transition-colors',
+                  'h-11 rounded-full border px-3 text-label font-semibold transition-colors',
                   relation === rel
                     ? 'border-purple-600 bg-purple-600 text-white dark:border-amber-400 dark:bg-amber-400 dark:text-ink'
                     : 'surface-outline text-zinc-600 dark:text-zinc-200',

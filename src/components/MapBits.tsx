@@ -56,6 +56,7 @@ export function NearbyPill({ cars, gps, loading, failed, onAskGps, onRetry }: Ne
             Não sabemos onde está — escolha a zona de partida
           </span>
           <button
+            type="button"
             onClick={onAskGps}
             className="text-[12px] font-semibold text-purple-600 dark:text-purple-400 tap-pad"
           >
@@ -73,7 +74,7 @@ export function NearbyPill({ cars, gps, loading, failed, onAskGps, onRetry }: Ne
           <span className="text-[13px] font-bold text-zinc-600 dark:text-zinc-300">
             Não foi possível ver os carros agora
           </span>
-          <button onClick={onRetry} className="text-[12px] font-semibold text-purple-600 dark:text-purple-400 tap-pad">
+          <button type="button" onClick={onRetry} className="text-[12px] font-semibold text-purple-600 dark:text-purple-400 tap-pad">
             Tentar de novo
           </button>
         </span>
@@ -284,9 +285,9 @@ export function WhereAmI({
       </div>
 
       <p className="mt-1.5 flex min-w-0 items-baseline gap-1.5">
-        <span className="truncate text-[15px] font-semibold tracking-tight text-ink dark:text-white">{title}</span>
+        <span title={title} className="truncate text-[15px] font-semibold tracking-tight text-ink dark:text-white">{title}</span>
         {detail && (
-          <span className="min-w-0 truncate text-caption font-medium text-zinc-500 dark:text-zinc-400">{detail}</span>
+          <span title={detail} className="min-w-0 truncate text-caption font-medium text-zinc-500 dark:text-zinc-400">{detail}</span>
         )}
       </p>
 
@@ -318,7 +319,7 @@ export function WhereAmI({
           {action.kind === 'move'
             ? <NavigationIcon className="w-3.5 h-3.5 shrink-0" />
             : <PinIcon className="w-3.5 h-3.5 shrink-0" />}
-          <span className="truncate">{action.label}</span>
+          <span title={action.label} className="truncate">{action.label}</span>
         </button>
       )}
     </div>

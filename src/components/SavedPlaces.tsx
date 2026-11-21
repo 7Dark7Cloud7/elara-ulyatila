@@ -53,13 +53,13 @@ export function SavedPlaces({
               onClick={() => onPick(p)}
               disabled={busy}
               className={cn(
-                'h-10 rounded-full px-3.5 flex items-center gap-1.5 border text-[13px] font-semibold transition-colors',
+                'h-11 rounded-full px-3.5 flex items-center gap-1.5 border text-[13px] font-semibold transition-colors',
                 'surface-outline active:bg-purple-50 dark:active:bg-white/[0.12]',
                 managing && 'pr-9',
               )}
             >
               <span aria-hidden className="text-[14px] leading-none">{p.emoji}</span>
-              <span className="max-w-[128px] truncate">{p.label}</span>
+              <span title={p.label} className="max-w-[128px] truncate">{p.label}</span>
             </button>
             {managing && (
               <button
@@ -81,7 +81,7 @@ export function SavedPlaces({
             onClick={() => { setAdding(true); setCustomLabel(targetLabel ?? ''); setEmoji(PLACE_EMOJIS[0]); }}
             disabled={busy}
             className={cn(
-              'shrink-0 h-10 rounded-full px-3.5 flex items-center gap-1.5 border text-[13px] font-semibold transition-colors',
+              'shrink-0 h-11 rounded-full px-3.5 flex items-center gap-1.5 border text-[13px] font-semibold transition-colors',
               'border-dashed border-purple-400 text-purple-700 bg-purple-50/70',
               'dark:border-amber-400/50 dark:text-amber-300 dark:bg-amber-400/[0.08]',
             )}
@@ -95,7 +95,7 @@ export function SavedPlaces({
             type="button"
             onClick={() => { setManaging((m) => !m); if (adding) setAdding(false); }}
             className={cn(
-              'shrink-0 h-10 rounded-full px-3 flex items-center gap-1.5 text-[12px] font-semibold border transition-colors',
+              'shrink-0 h-11 rounded-full px-3 flex items-center gap-1.5 text-[12px] font-semibold border transition-colors',
               managing
                 ? 'bg-purple-600 text-white border-purple-600 dark:bg-amber-400 dark:text-ink dark:border-amber-400'
                 : 'surface-outline text-zinc-500 dark:text-zinc-300',
@@ -130,7 +130,7 @@ export function SavedPlaces({
                 type="button"
                 onClick={() => commit(preset.emoji, preset.label)}
                 disabled={busy}
-                className="h-9 rounded-full border border-zinc-200 bg-zinc-50 px-3 text-label font-semibold text-ink inline-flex items-center gap-1.5 active:scale-[0.97] dark:border-[rgba(185,168,220,0.28)] dark:bg-white/[0.06] dark:text-white"
+                className="h-11 rounded-full border border-zinc-200 bg-zinc-50 px-3 text-label font-semibold text-ink inline-flex items-center gap-1.5 active:scale-[0.97] dark:border-[rgba(185,168,220,0.28)] dark:bg-white/[0.06] dark:text-white"
               >
                 <span aria-hidden>{preset.emoji}</span> {preset.label}
               </button>
@@ -165,7 +165,7 @@ export function SavedPlaces({
                 aria-pressed={emoji === e}
                 aria-label={`Ícone ${e}`}
                 className={cn(
-                  'w-10 h-10 rounded-control border text-[18px] flex items-center justify-center transition-colors',
+                  'w-11 h-11 rounded-control border text-[18px] flex items-center justify-center transition-colors',
                   emoji === e
                     ? 'border-purple-500 bg-purple-100 dark:border-amber-400 dark:bg-amber-400/20'
                     : 'surface-outline',

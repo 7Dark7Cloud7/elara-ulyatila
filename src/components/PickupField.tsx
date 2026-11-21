@@ -97,8 +97,8 @@ export function PickupField({ pickup, picking, busy, at, zoneName, zones, onAskP
         <div className="px-3 pb-2">
           <p className="flex items-center gap-1.5 text-[12px] font-semibold text-purple-700 dark:text-purple-300">
             <MapPin className="w-3.5 h-3.5 shrink-0" />
-            <span className="min-w-0 truncate">{named}</span>
-            <span className="min-w-0 truncate font-medium text-zinc-500 dark:text-zinc-400">{tail}</span>
+            <span title={named ?? undefined} className="min-w-0 truncate">{named}</span>
+            <span title={tail || undefined} className="min-w-0 truncate font-medium text-zinc-500 dark:text-zinc-400">{tail}</span>
           </p>
           {where.via === 'equipa' && (
             <p className="mt-1 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
@@ -109,7 +109,7 @@ export function PickupField({ pickup, picking, busy, at, zoneName, zones, onAskP
             <button
               type="button"
               onClick={() => onName(named)}
-              className="mt-1.5 h-8 px-2.5 rounded-xl bg-purple-100 dark:bg-purple-900/40 border border-purple-300 dark:border-purple-700 text-[12px] font-bold text-purple-700 dark:text-purple-200"
+              className="mt-1.5 h-11 px-3 rounded-control bg-purple-100 dark:bg-purple-900/40 border border-purple-300 dark:border-purple-700 text-[12px] font-bold text-purple-700 dark:text-purple-200"
             >
               Usar «{named}» como referência
             </button>
@@ -126,7 +126,7 @@ export function PickupField({ pickup, picking, busy, at, zoneName, zones, onAskP
             onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
             aria-label="Referência do ponto de embarque"
             placeholder="Referência: portão azul, ao lado da farmácia"
-            className="min-w-0 flex-1 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 text-[13px] font-bold outline-none focus:border-purple-400 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
+            className="min-w-0 flex-1 h-11 rounded-control bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-3 text-[13px] font-bold outline-none focus:border-purple-400 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
           />
           {onClear && (
             <button

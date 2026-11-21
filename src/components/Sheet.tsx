@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseIcon } from './ElaraIcons';
 import { cn } from '../lib/utils';
@@ -22,12 +22,52 @@ interface SheetProps {
  * conteúdo; só a geometria muda.
  */
 export function Sheet({ open, title, onClose, children, tall }: SheetProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // Os pais passam funções novas a cada render. Guardar a função num ref evita
+  // que o efeito se re Monte enquanto a folha está aberta e devolva o foco ao
+  // botão de trás no meio da pessoa a escrever.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const dialog = dialogRef.current;
+    const previous = document.activeElement as HTMLElement | null;
+
+    const focusable = () => {
+      if (!dialog) return [] as HTMLElement[];
+      const sel = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      return [...dialog.querySelectorAll<HTMLElement>(sel)].filter((el) => el.offsetParent !== null);
+    };
+
+    // O autoFocus do campo de pesquisa corre antes dos efeitos: se o foco já
+    // estiver dentro da folha, não lho roubamos para o botão de fechar.
+    if (dialog && !dialog.contains(document.activeElement)) {
+      (dialog.querySelector<HTMLElement>('[autofocus]') ?? focusable()[0])?.focus();
+    }
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onCloseRef.current(); return; }
+      if (e.key !== 'Tab' || !dialog) return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const inside = dialog.contains(document.activeElement);
+      if (e.shiftKey && (!inside || document.activeElement === first)) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+        e.preventDefault(); first.focus();
+      }
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      // Devolver o foco a quem abriu a folha — sem isto, o teclado fica preso
+      // num botão que já não existe depois de fechar.
+      if (previous && document.contains(previous)) previous.focus();
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -39,6 +79,7 @@ export function Sheet({ open, title, onClose, children, tall }: SheetProps) {
         className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -58,6 +99,7 @@ export function Sheet({ open, title, onClose, children, tall }: SheetProps) {
         <div className="flex items-center justify-between px-5 pt-1.5 pb-3 border-b border-zinc-200/80 dark:border-[rgba(185,168,220,0.22)] shrink-0 lg:pt-4 lg:px-6">
           <h2 className="font-display text-title font-medium text-zinc-900 dark:text-white">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Fechar"
             className="tap-pad p-1 text-zinc-500 dark:text-zinc-400"

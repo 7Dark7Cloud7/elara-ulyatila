@@ -4,7 +4,7 @@ import {
 } from './ElaraIcons';
 import type { Zone } from '../types';
 import { Sheet } from './Sheet';
-import { dataDate, placeKindLabel, searchPlaces, usePlacesReady, type Place } from '../lib/places';
+import { dataDate, placeKindLabel, searchPlaces, usePlacesState, type Place } from '../lib/places';
 import { pickPopularZones } from '../lib/localExtras';
 import { reportMissingPlace, type MissingPlace } from '../lib/reports';
 import { cn, OFF } from '../lib/utils';
@@ -74,7 +74,7 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
   // Por cima dos bairros: «Belas Shopping» é um ponto, «Belas» é uma zona.
   // O índice chega depois do primeiro ecrã, por isso a lista se reescreve
   // sozinha quando ele entra — quem já escreveu não tem de apagar nada.
-  const ready = usePlacesReady();
+  const { ready, failed, retry } = usePlacesState();
   // A licença é sempre dita, com índice dentro ou a caminho; a data só vale
   // quando os nomes chegaram, senão era uma data sem nada atrás dela.
   const checked = ready ? checkedOn(dataDate()) : '';
@@ -190,6 +190,26 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
                 : 'Escreva o nome do sítio — bairro, shopping, mercado, hospital, igreja, avenida — e o motorista lê onde o deixar. O preço é sempre o da zona.'}
             </p>
           )}
+          {/* O índice de lugares entra depois do primeiro ecrã. Sem esta linha,
+              quem escreve logo vê só os bairros e pensa que o sítio não existe. */}
+          {onExact && !ready && !failed && (
+            <p role="status" className="mt-2 flex items-center gap-2 text-caption font-medium text-zinc-500 dark:text-zinc-400">
+              <SpinnerIcon className="h-3.5 w-3.5 animate-spin shrink-0" />
+              A carregar os nomes dos lugares do mapa…
+            </p>
+          )}
+          {onExact && !ready && failed && (
+            <div role="status" className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption font-medium text-amber-800 dark:text-amber-200">
+              <span>Os nomes dos lugares não chegaram. Pode continuar pelos bairros.</span>
+              <button
+                type="button"
+                onClick={retry}
+                className="tap-pad font-bold text-purple-700 dark:text-amber-300"
+              >
+                Tentar de novo
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="space-y-5">
@@ -208,7 +228,7 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
                       type="button"
                       onClick={() => pick(z.id)}
                       className={cn(
-                        'h-9 px-3 rounded-control border text-label font-semibold transition-colors',
+                        'h-11 px-3 rounded-control border text-label font-semibold transition-colors',
                         active
                           ? 'border-purple-500 bg-purple-100 text-purple-800 dark:border-amber-400 dark:bg-amber-400/[0.16] dark:text-amber-200'
                           : 'border-zinc-200 dark:border-white/15 bg-white dark:bg-white/[0.05] text-ink dark:text-zinc-200',
@@ -231,13 +251,14 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
                 {exact.map((p) => (
                   <button
                     key={`${p.name}-${p.lat}-${p.lon}`}
+                    type="button"
                     onClick={() => pickExact(p)}
                     className="w-full flex items-center gap-3 px-3.5 py-3 text-left active:bg-zinc-50 dark:active:bg-white/[0.06]"
                   >
                     <PinIcon className="w-4 h-4 shrink-0 text-purple-600 dark:text-amber-400" />
                     <span className="min-w-0 flex-1">
-                      <span className="block text-body font-semibold text-ink dark:text-white truncate">{p.name}</span>
-                      <span className="block text-caption font-medium text-zinc-500 dark:text-zinc-400 truncate">
+                      <span title={p.name} className="block text-body font-semibold text-ink dark:text-white truncate">{p.name}</span>
+                      <span title={p.via === 'equipa' ? 'dito pela equipa' : `${placeKindLabel(p.kind)}${p.parent ? ` · ${p.parent}` : ''}`} className="block text-caption font-medium text-zinc-500 dark:text-zinc-400 truncate">
                         {p.via === 'equipa'
                           ? 'dito pela equipa'
                           : `${placeKindLabel(p.kind)}${p.parent ? ` · ${p.parent}` : ''}`}
@@ -264,6 +285,7 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
                 {list.map((z) => (
                   <button
                     key={z.id}
+                    type="button"
                     onClick={() => pick(z.id)}
                     className={cn(
                       'text-left rounded-control px-3 py-2.5 border transition-colors',
@@ -272,7 +294,7 @@ export function ZonePicker({ label, value, zones, onChange, onExact, report, com
                         : 'surface-card text-ink dark:text-zinc-200',
                     )}
                   >
-                    <span className="block text-body font-semibold truncate">{z.name}</span>
+                    <span title={`${z.name} · ${z.city}`} className="block text-body font-semibold truncate">{z.name}</span>
                     <span className="block text-caption text-zinc-500 dark:text-zinc-400 capitalize">{z.kind}</span>
                   </button>
                 ))}

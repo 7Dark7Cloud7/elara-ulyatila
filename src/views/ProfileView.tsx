@@ -105,6 +105,7 @@ export function ProfileView({
 
       {/* Trabalhar com a Elara */}
       <button
+        type="button"
         onClick={onDriver}
         className="surface-card flex w-full items-center gap-3 rounded-card p-3.5 text-left transition-all hover:border-purple-300 active:scale-[0.99] dark:hover:border-amber-400/50"
       >
@@ -257,6 +258,7 @@ export function ProfileView({
             </p>
           </div>
           <button
+            type="button"
             role="switch"
             aria-checked={demo}
             aria-label="Modo demonstração"
@@ -287,6 +289,7 @@ export function ProfileView({
 
       {user?.isAdmin && (
         <button
+          type="button"
           onClick={onTeam}
           className="surface-card flex w-full items-center justify-between gap-2 rounded-card p-4 text-body font-semibold text-ink dark:text-white"
         >
@@ -299,6 +302,7 @@ export function ProfileView({
 
       {user && (
         <button
+          type="button"
           onClick={onLogout}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-control border border-red-200 bg-red-50 text-body font-semibold text-red-600 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
         >
@@ -318,6 +322,7 @@ function QuickAction({ icon, label, hint, onClick, danger }: {
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
         'flex min-h-[84px] flex-col items-start justify-between rounded-card border p-3 text-left active:scale-[0.98]',
@@ -352,6 +357,7 @@ function ToggleRow({ label, hint, on, onToggle, icon }: {
         <p className="mt-0.5 text-label text-zinc-500 dark:text-zinc-400">{hint}</p>
       </div>
       <button
+        type="button"
         onClick={() => onToggle(!on)}
         role="switch"
         aria-checked={on}
