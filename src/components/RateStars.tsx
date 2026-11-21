@@ -23,6 +23,7 @@ export function RateStars({ score, busy, onPick, size = 'lg' }: RateStarsProps) 
         return (
           <button
             key={n}
+            type="button"
             onClick={() => onPick(n)}
             disabled={busy}
             aria-label={`${n} estrela${n > 1 ? 's' : ''}`}

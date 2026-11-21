@@ -159,7 +159,10 @@ export default function App() {
   const notify = useCallback((text: string, tone: 'ok' | 'err' = 'err') => {
     setToast({ text, tone });
     if (toastTimer.current) window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), 4200);
+    // O aviso fica o tempo de o ler: uma linha leva ~3 s; três linhas levam
+    // mais, sem chegar aos 7 s em que o ecrã parece bloqueado.
+    const hold = Math.min(7000, Math.max(3600, 3000 + text.length * 35));
+    toastTimer.current = window.setTimeout(() => setToast(null), hold);
   }, []);
 
   // Zonas e tarifas vêm da base de dados — é o servidor que manda nos preços.
@@ -459,8 +462,10 @@ export default function App() {
           <div className="mx-auto flex max-w-lg items-center justify-between gap-2 lg:max-w-none lg:px-4">
             <div className="flex min-w-0 items-center gap-2">
               <DemoFlaskIcon className="h-4 w-4 shrink-0 text-purple-600 dark:text-amber-400" />
+              {/* No telemóvel o detalhe truncava a meio («conta…»); a faixa
+                  diz o essencial e o resto aparece quando há largura. */}
               <span className="truncate text-[12px] font-semibold text-purple-900 dark:text-amber-200">
-                Modo demonstração · conta, viatura e carteira de teste
+                Modo demonstração<span className="hidden sm:inline"> · conta, viatura e carteira de teste</span>
               </span>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
@@ -772,8 +777,10 @@ export default function App() {
           className={cn(
             // O toast centra-se na área de trabalho, não no browser inteiro:
             // com a coluna de navegação à esquerda, o meio do ecrã fica 124 px
-            // antes do meio do que é nosso.
-            'animate-toast fixed top-4 left-1/2 -translate-x-1/2 z-[60] max-w-[92vw] lg:left-[calc(50%+var(--rail)/2)]',
+            // antes do meio do que é nosso. No telemóvel fica abaixo da barra
+            // de topo: um aviso não deve tapar a marca nem o botão do tema.
+            'animate-toast fixed left-1/2 -translate-x-1/2 z-[60] w-max max-w-[92vw] lg:left-[calc(50%+var(--rail)/2)]',
+            'top-[calc(4.25rem+env(safe-area-inset-top,0px))] lg:top-4',
             'rounded-2xl px-4 py-3 text-sm font-bold shadow-card backdrop-blur',
             toast.tone === 'ok'
               ? 'bg-purple-600/95 text-white dark:bg-amber-400/95 dark:text-ink'

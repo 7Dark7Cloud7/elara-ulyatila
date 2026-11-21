@@ -161,7 +161,17 @@ export function TripReceipt({ trip, zones, onRated, onReport, onRepeat, onError 
             {trip.kind === 'entrega' ? 'Motorista' : 'Quem o levou'}
           </p>
           <p className="mt-1 text-body font-semibold text-ink dark:text-white">
-            {trip.driver_name} · {trip.car_model ?? ''} {trip.plate ?? ''}
+            {trip.driver_name}
+          </p>
+          {/* A matrícula é um dado, não uma frase: fica num selo curto que não
+              parte a meio («LD-24-» / «71-AA») quando o nome é comprido. */}
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-zinc-500 dark:text-zinc-400">
+            {trip.car_model?.trim() && <span>{trip.car_model}</span>}
+            {trip.plate?.trim() && (
+              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-semibold tracking-[0.04em] text-ink dark:bg-white/10 dark:text-white">
+                {trip.plate}
+              </span>
+            )}
           </p>
           {score === null ? (
             <>

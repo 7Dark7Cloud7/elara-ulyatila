@@ -104,7 +104,7 @@ export function RideBoard({
         <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
           Peça a viagem fechada como sempre — é o mesmo carro, o mesmo preço da app.
         </p>
-        <button onClick={onWantPrivate} className="mt-3 h-10 px-4 rounded-xl font-semibold text-[13px] bg-purple-600 text-white">
+        <button type="button" onClick={onWantPrivate} className="mt-3 h-11 px-4 rounded-xl font-semibold text-[13px] bg-purple-600 text-white">
           Pedir viagem
         </button>
       </div>
@@ -126,7 +126,16 @@ export function RideBoard({
 
       {!loading && rows.length === 0 && (
         <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 p-5 text-center">
-          <Users className="w-7 h-7 text-zinc-300 dark:text-zinc-600 mx-auto" />
+          {/* O mesmo palco de estúdio dos serviços: a carrinha partilhada em vez
+              de um ícone cinzento — a pessoa vê o produto, não a ausência dele. */}
+          <span className="service-stage relative mx-auto mb-2 flex h-[80px] w-[124px] items-center justify-center overflow-hidden rounded-card">
+            <img
+              src="/icons-3d/partilha.png"
+              alt=""
+              aria-hidden="true"
+              className="relative z-10 h-[68px] w-auto object-contain"
+            />
+          </span>
           <p className="font-bold text-zinc-900 dark:text-white mt-2">
             Ainda não há corridas com lugares abertos por aqui
           </p>
@@ -135,10 +144,10 @@ export function RideBoard({
             houver, aparecem aqui — enquanto isso pode pedir a viagem fechada.
           </p>
           <div className="flex gap-2 mt-3">
-            <button onClick={load} className="flex-1 h-10 rounded-xl font-semibold text-[13px] bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200">
+            <button type="button" onClick={load} className="flex-1 h-11 rounded-xl font-semibold text-[13px] bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200">
               Procurar de novo
             </button>
-            <button onClick={onWantPrivate} className="flex-1 h-10 rounded-xl font-semibold text-[13px] bg-purple-600 text-white">
+            <button type="button" onClick={onWantPrivate} className="flex-1 h-11 rounded-xl font-semibold text-[13px] bg-purple-600 text-white">
               Pedir viagem
             </button>
           </div>
