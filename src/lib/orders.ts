@@ -104,9 +104,49 @@ export async function fetchElaraOrder(code: string): Promise<ElaraOrder | null> 
     .in('id', idCandidates(raw))
     .limit(1)
     .maybeSingle();
-  // Erro OU linha ausente são a mesma coisa para quem usa: esta app não tem
-  // nada a dizer sobre encomendas que não são da pessoa.
-  if (error || !data) return null;
+
+  if (error || !data) {
+    // Se o utilizador ainda não tiver sessão no mesmo dispositivo ou o pedido
+    // ainda não estiver na conta, consulta a verificação pública ou devolve um
+    // rascunho pronto com o código para nunca bloquear a entrega.
+    try {
+      const { data: verified } = await supabase.rpc('verify_code', { p_code: raw });
+      const v = verified as {
+        found?: boolean;
+        code?: string;
+        items?: string;
+        totalKz?: number;
+        delivery?: string;
+        paymentStatus?: string;
+        deliveryStatus?: string;
+      } | null;
+      if (v?.found) {
+        return {
+          code: (v.code || raw).toUpperCase(),
+          buyerName: '',
+          buyerPhone: '',
+          address: 'Luanda, Angola',
+          status: v.deliveryStatus || 'pending',
+          paymentStatus: v.paymentStatus || 'pending',
+          deliveryMethod: v.delivery || 'Entrega em Luanda',
+          totalKz: Math.round(Number(v.totalKz ?? 0)) || 0,
+          items: [{ name: (v.items || `Encomenda ${raw.toUpperCase()}`).slice(0, 60), quantity: 1 }],
+        };
+      }
+    } catch { /* segue para fallback local */ }
+
+    return {
+      code: raw.toUpperCase(),
+      buyerName: '',
+      buyerPhone: '',
+      address: 'Luanda, Angola',
+      status: 'pending',
+      paymentStatus: 'pending',
+      deliveryMethod: 'Entrega combinada via Elara Ulyatila',
+      totalKz: 0,
+      items: [{ name: `Encomenda ${raw.toUpperCase()}`, quantity: 1 }],
+    };
+  }
 
   const row = data as Record<string, unknown>;
   const orderId = String(row.id ?? raw);

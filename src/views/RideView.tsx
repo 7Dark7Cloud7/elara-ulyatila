@@ -151,8 +151,9 @@ export function RideView({
     setService('entrega');
     setBoardOpen(false);
     setWhat(seed.what);
-    setToName(seed.toName);
-    setToPhone(seed.toPhone);
+    if (seed.toName) setToName(seed.toName);
+    if (seed.toPhone) setToPhone(seed.toPhone);
+    if (seed.guess?.zoneId) setTo(seed.guess.zoneId);
     setParcelSize(seed.parcelSize);
     setOpen(true);
   }, [order?.seed]);

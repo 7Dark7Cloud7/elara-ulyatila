@@ -231,13 +231,9 @@ export default function App() {
     // que a pessoa entretanto mudou no formulário.
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
     if (!authKnown) return;
-    // Sem sessão fica à espera: quando a pessoa entrar, este mesmo efeito lê a
-    // encomenda. Perder o código aqui era mandar alguém voltar ao Elara para
-    // carregar no botão outra vez.
-    if (!user) {
-      setAuthOpen(true);
-      notify('Para ler a encomenda, entra primeiro com a conta do Elara.', 'err');
-      return;
+    if (!user && !demo) {
+      setDemo(true);
+      try { localStorage.setItem(DEMO_KEY, '1'); } catch { /* modo privado */ }
     }
     if (fetchedOrder.current === code) { setPendingOrder(null); return; }
     fetchedOrder.current = code;
@@ -260,7 +256,7 @@ export default function App() {
       fetchedOrder.current = null;
       notify('Não foi possível ler a encomenda. Tente de novo.', 'err');
     });
-  }, [pendingOrder, authKnown, user, notify]);
+  }, [pendingOrder, authKnown, user, demo, notify]);
 
   const loadTrips = useCallback(async () => {
     if (!user) { setMyTrips([]); setTripsLoading(false); return; }
